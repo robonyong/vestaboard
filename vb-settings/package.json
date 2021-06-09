@@ -1,0 +1,28 @@
+{
+  "name": "vb-settings",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@date-io/core": "^2.10.11",
+    "@google-cloud/firestore": "^4.12.2",
+    "@material-ui/core": "^4.11.4",
+    "@material-ui/icons": "^4.11.2",
+    "@material-ui/pickers": "^3.3.10",
+    "@vestaboard/installables": "^1.0.9",
+    "next": "10.2.3",
+    "next-transpile-modules": "^7.2.0",
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
+    "swr": "^0.5.6"
+  },
+  "devDependencies": {
+    "@types/react": "^17.0.9",
+    "@types/react-dom": "^17.0.6",
+    "typescript": "4.3.2"
+  }
+}
