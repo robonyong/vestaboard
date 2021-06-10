@@ -198,16 +198,15 @@ func postNewBoard(postReq *NewBoardReq, client *http.Client) error {
 		log.Error().Err(err).Msg("Failed to read VB response body")
 		return err
 	}
+	var respBody map[string]interface{}
+	json.Unmarshal([]byte(body), &respBody)
 	if resp.StatusCode != 200 {
-		var respBody map[string]interface{}
-		json.Unmarshal([]byte(body), &respBody)
-
 		log.Error().
 			Int("response_code", resp.StatusCode).
 			Interface("response_body", respBody).
 			Msg("Received an error from posting to VB")
 		return fmt.Errorf("couldn't post to board: %s", resp.Status)
 	}
-	log.Info().Interface("resp", resp).Msg("Successfully posted to board")
+	log.Info().Interface("resp", respBody).Msg("Successfully posted to board")
 	return nil
 }
