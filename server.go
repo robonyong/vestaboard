@@ -116,11 +116,8 @@ func runCatIncidentTracker(client *http.Client, loc *time.Location, lastDate str
 	now := time.Now().In(loc)
 	lastCatIncident, _ := time.ParseInLocation("2006-01-02", lastDate, loc)
 	days := int(math.Round(now.Sub(lastCatIncident).Hours() / 24))
-	log.Info().Int("days_since", days).Msg("")
 	httpClient := &http.Client{}
 	line := fmt.Sprintf("Days Since Last Cat Incident: %v", days)
-
-	log.Info().Msg(line)
 
 	err := postNewBoard(&NewBoardReq{ReqType: "text", Text: line}, httpClient)
 	return err
@@ -203,7 +200,7 @@ func runBoard(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	} else {
-		log.Info().Msg("Running Cat Incident Tracker")
+		log.Info().Str("from_date", setting.LastCatIncidentDate).Msg("Running Cat Incident Tracker")
 		runCatIncidentTracker(httpClient, loc, setting.LastCatIncidentDate)
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusInternalServerError),

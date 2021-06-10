@@ -208,5 +208,6 @@ func postNewBoard(postReq *NewBoardReq, client *http.Client) error {
 			Msg("Received an error from posting to VB")
 		return fmt.Errorf("couldn't post to board: %s", resp.Status)
 	}
+	log.Info().Interface("resp", resp).Msg("Successfully posted to board")
 	return nil
 }
