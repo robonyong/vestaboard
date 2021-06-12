@@ -39,6 +39,36 @@ func trimLine(line []string) []string {
 	return line
 }
 
+func hasAnyEvents(ctx context.Context, s *calendar.Service, loc *time.Location) bool {
+	cals := os.Getenv("CALENDARS")
+
+	if len(cals) == 0 {
+		return false
+	}
+
+	now := time.Now().In(loc)
+	calEnd := time.Date(now.Year(), now.Month(), now.Day(), 17, 59, 59, 999999999, loc)
+	for _, cId := range strings.Split(cals, ",") {
+		events, err := s.Events.List(cId).
+			SingleEvents(true).
+			TimeMin(now.Format(time.RFC3339)).
+			TimeMax(calEnd.Format(time.RFC3339)).
+			Context(ctx).Do()
+		if err != nil {
+			log.Error().Err(err).Str("calendar", cId).Msg("Failed to fetch calendar")
+			continue
+		}
+
+		for _, e := range events.Items {
+			if e.Status != "cancelled" && e.Start != nil && e.Summary != "" {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 func runTransit(client *http.Client, loc *time.Location) error {
 	_, is_set := os.LookupEnv("AC_TRANSIT_KEY")
 	if !is_set {
@@ -79,17 +109,8 @@ func runTransit(client *http.Client, loc *time.Location) error {
 	return err
 }
 
-func runCalendar(ctx context.Context, client *http.Client, loc *time.Location) error {
-	calPath, is_set := os.LookupEnv("CALENDAR_CREDENTIALS_PATH")
+func runCalendar(ctx context.Context, s *calendar.Service, client *http.Client, loc *time.Location) error {
 	cals := os.Getenv("CALENDARS")
-	if !is_set {
-		return fmt.Errorf("CALENDAR_CREDENTIALS_PATH is not set")
-	}
-
-	s, err := calendar.NewService(ctx, option.WithCredentialsFile(calPath))
-	if err != nil {
-		return err
-	}
 
 	if len(cals) == 0 {
 		return nil
@@ -108,14 +129,15 @@ func runCalendar(ctx context.Context, client *http.Client, loc *time.Location) e
 		}
 	}
 
-	err = postNewBoard(&NewBoardReq{ReqType: "charBoard", CharBoard: &nextBoard}, client)
+	err := postNewBoard(&NewBoardReq{ReqType: "charBoard", CharBoard: &nextBoard}, client)
 	return err
 }
 
 func runCatIncidentTracker(client *http.Client, loc *time.Location, lastDate string) error {
 	now := time.Now().In(loc)
+	nowDayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 	lastCatIncident, _ := time.ParseInLocation("2006-01-02", lastDate, loc)
-	days := int(math.Round(now.Sub(lastCatIncident).Hours() / 24))
+	days := int(math.Round(nowDayStart.Sub(lastCatIncident).Hours() / 24))
 	httpClient := &http.Client{}
 	line := fmt.Sprintf("Days Since Last Cat Incident: %v", days)
 
@@ -181,6 +203,22 @@ func runBoard(w http.ResponseWriter, req *http.Request) {
 	transitStart := time.Date(now.Year(), now.Month(), now.Day(), transitStartH, transitStartM, 0, 0, loc)
 	transitEnd := time.Date(now.Year(), now.Month(), now.Day(), transitEndH, transitEndM, 0, 0, loc)
 
+	calPath, is_set := os.LookupEnv("CALENDAR_CREDENTIALS_PATH")
+	if !is_set {
+		log.Error().Msg("CALENDAR_CREDENTIALS_PATH is not set")
+		http.Error(w, http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError)
+		return
+	}
+
+	s, err := calendar.NewService(ctx, option.WithCredentialsFile(calPath))
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get calendar service")
+		http.Error(w, http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError)
+		return
+	}
+
 	if now.After(transitStart) && now.Before(transitEnd) && setting.TransitEnabled {
 		log.Info().Interface("transit_start", transitStart).Interface("transit_end", transitEnd).Msg("Running Transit")
 		err = runTransit(httpClient, loc)
@@ -190,9 +228,9 @@ func runBoard(w http.ResponseWriter, req *http.Request) {
 				http.StatusInternalServerError)
 			return
 		}
-	} else if now.After(transitStart) && now.Hour() < 18 && setting.CalendarEnabled {
+	} else if now.After(transitStart) && now.Hour() < 18 && setting.CalendarEnabled && hasAnyEvents(ctx, s, loc) {
 		log.Info().Msg("Running Calendar")
-		err = runCalendar(ctx, httpClient, loc)
+		err = runCalendar(ctx, s, httpClient, loc)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to run calendar")
 			http.Error(w, http.StatusText(http.StatusInternalServerError),
