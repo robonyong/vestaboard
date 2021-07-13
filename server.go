@@ -202,6 +202,8 @@ func runBoard(w http.ResponseWriter, req *http.Request) {
 
 	transitStart := time.Date(now.Year(), now.Month(), now.Day(), transitStartH, transitStartM, 0, 0, loc)
 	transitEnd := time.Date(now.Year(), now.Month(), now.Day(), transitEndH, transitEndM, 0, 0, loc)
+	calendarStart := time.Date(now.Year(), now.Month(), now.Day(), 9, 0, 0, 0, loc)
+	calendarEnd := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, loc)
 
 	calPath, is_set := os.LookupEnv("CALENDAR_CREDENTIALS_PATH")
 	if !is_set {
@@ -228,7 +230,7 @@ func runBoard(w http.ResponseWriter, req *http.Request) {
 				http.StatusInternalServerError)
 			return
 		}
-	} else if now.After(transitStart) && now.Hour() < 18 && setting.CalendarEnabled && hasAnyEvents(ctx, s, loc) {
+	} else if now.After(calendarStart) && now.Before(calendarEnd) && setting.CalendarEnabled && hasAnyEvents(ctx, s, loc) {
 		log.Info().Msg("Running Calendar")
 		err = runCalendar(ctx, s, httpClient, loc)
 		if err != nil {
