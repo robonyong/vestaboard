@@ -221,7 +221,7 @@ func runBoard(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if now.After(transitStart) && now.Before(transitEnd) && setting.TransitEnabled {
+	if setting.TransitEnabled && now.After(transitStart) && now.Before(transitEnd) {
 		log.Info().Interface("transit_start", transitStart).Interface("transit_end", transitEnd).Msg("Running Transit")
 		err = runTransit(httpClient, loc)
 		if err != nil {
