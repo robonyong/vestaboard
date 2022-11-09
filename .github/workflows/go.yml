@@ -19,28 +19,6 @@ jobs:
           gcloud_service_key: ${{ secrets.GCLOUD_SERVICE_KEY }}
           project_id: ${{ secrets.GOOGLE_PROJECT_ID }}
           registry: gcr.io
-          image_name: vestaboard
+          image_name: vestaboard-local
           image_tag: latest
           dockerfile: ./Dockerfile
-
-  build-frontend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./vb-settings
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Docker Setup Buildx
-        uses: docker/setup-buildx-action@v1.3.0
-
-      - name: Build & Push Docker GCR
-        uses: RafikFarhad/push-to-gcr-github-action@v3.0.2
-        with:
-          gcloud_service_key: ${{ secrets.GCLOUD_SERVICE_KEY }}
-          project_id: ${{ secrets.GOOGLE_PROJECT_ID }}
-          registry: gcr.io
-          image_name: vestaboard-settings
-          image_tag: latest
-          context: ./vb-settings
