@@ -34,7 +34,7 @@ const SubscriptionSetting: React.FC<Settings> = (props) => {
   const [transitEnd, setTransitEnd] = useState(props.transitEnd);
   const [transitEnabled, setTransitEnabled] = useState(props.transitEnabled);
   const [calendarEnabled, setCalendarEnabled] = useState(props.calendarEnabled);
-  const [lastCatIncidentDate, setDate] = useState(props.lastCatIncidentDate);
+  // const [lastCatIncidentDate, setDate] = useState(props.lastCatIncidentDate);
   const [saveState, setSaveState] = useState<SaveState>({
     saving: false,
   });
@@ -46,7 +46,7 @@ const SubscriptionSetting: React.FC<Settings> = (props) => {
       transitEnd,
       transitEnabled,
       calendarEnabled,
-      lastCatIncidentDate,
+      // lastCatIncidentDate,
     };
     const res = await fetch(`/api/settings/${props.id}`, {
       method: "PUT",
@@ -111,15 +111,15 @@ const SubscriptionSetting: React.FC<Settings> = (props) => {
             checked={calendarEnabled}
             onValueChange={setCalendarEnabled}
           />
-          <Spacer size="medium" />
-          <SubTitle>Quinoa</SubTitle>
-          <Spacer />
+          {/* <Spacer size="medium" /> */}
+          {/* <SubTitle>Quinoa</SubTitle> */}
+          {/* <Spacer />
           <Input
             type="date"
             label="Date Of Last Incident"
             value={lastCatIncidentDate}
             onValueChange={setDate}
-          />
+          /> */}
           <Spacer size="large" />
           <Button
             disabled={saveState.saving}

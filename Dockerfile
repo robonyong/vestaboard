@@ -1,15 +1,41 @@
-FROM golang:1.16-alpine AS build
-RUN apk --no-cache add tzdata
+FROM golang:1.19-alpine AS build
+RUN apk --no-cache add tzdata build-base
 
 WORKDIR /go/src/app
 
 COPY *.go go.* ./
-RUN go install -v -tags vestaboard
+RUN go build -v -tags vestaboard
 
-FROM alpine:latest AS prod
+FROM node:16-alpine AS fe-build
+WORKDIR /usr/app
+COPY ./vb-settings/package* ./vb-settings/.npmrc ./
 
-COPY --from=build /go/bin/vestaboard /bin/vestaboard
+RUN npm ci
+
+COPY ./vb-settings/ .
+RUN npm run prisma:gen
+RUN npm run build
+
+FROM node:16-alpine AS prod
+ENV NODE_ENV production
+RUN npm install -g pm2
+
+WORKDIR /usr/app
+COPY ./vb-settings/package* ./vb-settings/.npmrc ./
+
+RUN npm ci
+
+COPY --from=build /go/src/app/vestaboard /bin/vestaboard
 COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
-ENV TZ=America/Los_Angeles
+COPY --from=fe-build /usr/app/public ./public
+COPY --from=fe-build --chown=nextjs:nodejs /usr/app/node_modules/.prisma/ /usr/app/node_modules/.prisma/
+COPY --from=fe-build --chown=nextjs:nodejs /usr/app/.next/ ./.next/
 
-ENTRYPOINT ["vestaboard"]
+COPY --chown=nextjs:nodejs entrypoint.sh *.db ./
+
+ENV TZ=America/Los_Angeles
+ENV PORT=$BE_PORT
+# EXPOSE $BE_PORT
+# EXPOSE $FE_PORT
+
+ENTRYPOINT ["sh", "./entrypoint.sh"]

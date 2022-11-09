@@ -2,20 +2,32 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	"cloud.google.com/go/firestore"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
 
-	"github.com/rs/zerolog"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog/log"
+)
+
+type makeBoardRunner struct {
+	db  *sql.DB
+	ctx context.Context
+}
+
+var (
+	ErrDuplicate    = errors.New("record already exists")
+	ErrNotExists    = errors.New("row not exists")
+	ErrUpdateFailed = errors.New("update failed")
+	ErrDeleteFailed = errors.New("delete failed")
 )
 
 const BOARD_WIDTH = 22
@@ -134,54 +146,50 @@ func runCalendar(ctx context.Context, s *calendar.Service, client *http.Client, 
 }
 
 func runCatIncidentTracker(client *http.Client, loc *time.Location, lastDate string) error {
-	now := time.Now().In(loc)
-	nowDayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
-	lastCatIncident, _ := time.ParseInLocation("2006-01-02", lastDate, loc)
-	days := int(math.Round(nowDayStart.Sub(lastCatIncident).Hours() / 24))
-	httpClient := &http.Client{}
-	line := fmt.Sprintf("Days Since Last Cat Incident: %v", days)
+	// now := time.Now().In(loc)
+	// nowDayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	// lastCatIncident, _ := time.ParseInLocation("2006-01-02", lastDate, loc)
+	// days := int(math.Round(nowDayStart.Sub(lastCatIncident).Hours() / 24))
+	// line := fmt.Sprintf("Days Since Last Cat Incident: %v", days)
+	nextBoard := [BOARD_HEIGHT][BOARD_WIDTH]uint8{}
+	copyBoard := [BOARD_HEIGHT][BOARD_WIDTH]string{
+		{" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " "},
+		{" ", " ", " ", " ", " ", " ", " ", " ", "/", "|", "-", "/", ")", " ", " ", " ", " ", " ", " ", " ", " ", " "},
+		{" ", " ", " ", " ", " ", " ", " ", "(", " ", "O", ".", "O", " ", ")", " ", " ", " ", " ", " ", " ", " ", " "},
+		{" ", " ", " ", " ", " ", " ", " ", " ", "#", "#", "$", "#", "#", " ", " ", " ", " ", " ", " ", " ", " ", " "},
+		{" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " "},
+		{" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " "},
+	}
 
-	err := postNewBoard(&NewBoardReq{ReqType: "text", Text: line}, httpClient)
+	for i, line := range copyBoard {
+		for j, char := range line {
+			charCode, _ := getVestaboardChar(char)
+			nextBoard[i][j] = charCode
+		}
+	}
+
+	err := postNewBoard(&NewBoardReq{ReqType: "charBoard", CharBoard: &nextBoard}, client)
 	return err
 }
 
-func runBoard(w http.ResponseWriter, req *http.Request) {
-	cachePath, is_set := os.LookupEnv("CACHE_CREDENTIALS_PATH")
-	if !is_set {
-		log.Error().Msg("CACHE_CREDENTIALS_PATH is not set")
-		http.Error(w, http.StatusText(http.StatusInternalServerError),
-			http.StatusInternalServerError)
-		return
-	}
-	projectID, _ := os.LookupEnv("PROJECT_ID")
-	VB_SUBSCRIPTION_ID, _ := os.LookupEnv("VB_SUBSCRIPTION_ID")
+func (br *makeBoardRunner) runBoard(w http.ResponseWriter, req *http.Request) {
+	VB_BOARD_NAME, _ := os.LookupEnv("VB_BOARD_NAME")
 
-	ctx := context.Background()
-	client, err := firestore.NewClient(ctx, projectID, option.WithCredentialsFile(cachePath))
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to connect to firestore")
-		http.Error(w, http.StatusText(http.StatusInternalServerError),
-			http.StatusInternalServerError)
-		return
-	}
-
-	settingDoc := client.Doc(fmt.Sprintf("subscriptions/%s", VB_SUBSCRIPTION_ID))
-	settingSnap, err := settingDoc.Get(ctx)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to get subscription document")
-		http.Error(w, http.StatusText(http.StatusInternalServerError),
-			http.StatusInternalServerError)
-		return
-	}
-
+	row := br.db.QueryRow(fmt.Sprintf("SELECT * FROM local_boards WHERE name = '%s'", VB_BOARD_NAME))
 	var setting SubscriptionSetting
-	err = settingSnap.DataTo(&setting)
-	if err != nil {
+	if err := row.Scan(&setting.Name, &setting.TransitEnabled, &setting.CalendarEnabled, &setting.TransitStart, &setting.TransitEnd); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, http.StatusText(http.StatusNotFound),
+				http.StatusNotFound)
+			return
+		}
 		log.Error().Err(err).Msg("Failed to marshal setting")
 		http.Error(w, http.StatusText(http.StatusInternalServerError),
 			http.StatusInternalServerError)
 		return
 	}
+
+	log.Info().Msg(fmt.Sprint(setting.CalendarEnabled))
 
 	loc, err := time.LoadLocation("America/Los_Angeles")
 	if err != nil {
@@ -213,7 +221,7 @@ func runBoard(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	s, err := calendar.NewService(ctx, option.WithCredentialsFile(calPath))
+	s, err := calendar.NewService(br.ctx, option.WithCredentialsFile(calPath))
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get calendar service")
 		http.Error(w, http.StatusText(http.StatusInternalServerError),
@@ -230,9 +238,9 @@ func runBoard(w http.ResponseWriter, req *http.Request) {
 				http.StatusInternalServerError)
 			return
 		}
-	} else if now.After(calendarStart) && now.Before(calendarEnd) && setting.CalendarEnabled && hasAnyEvents(ctx, s, loc) {
+	} else if now.After(calendarStart) && now.Before(calendarEnd) && setting.CalendarEnabled && hasAnyEvents(br.ctx, s, loc) {
 		log.Info().Msg("Running Calendar")
-		err = runCalendar(ctx, s, httpClient, loc)
+		err = runCalendar(br.ctx, s, httpClient, loc)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to run calendar")
 			http.Error(w, http.StatusText(http.StatusInternalServerError),
@@ -240,8 +248,10 @@ func runBoard(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	} else {
-		log.Info().Str("from_date", setting.LastCatIncidentDate).Msg("Running Cat Incident Tracker")
-		runCatIncidentTracker(httpClient, loc, setting.LastCatIncidentDate)
+		// log.Info().Str("from_date", setting.LastCatIncidentDate).Msg("Running Cat Incident Tracker")
+		// runCatIncidentTracker(httpClient, loc, setting.LastCatIncidentDate)
+		log.Info().Msg("Running Cat Incident Tracker")
+		runCatIncidentTracker(httpClient, loc, "")
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusInternalServerError),
 				http.StatusInternalServerError)
@@ -253,28 +263,37 @@ func runBoard(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	zerolog.LevelFieldName = "severity"
-	_, is_set := os.LookupEnv("API_KEY")
+	// zerolog.LevelFieldName = "severity" # I will absolutely forget that I need to do this for gcp logging. leave it in.
+	_, is_set := os.LookupEnv("RW_KEY")
 	if !is_set {
-		log.Fatal().Msg("API_KEY is not set")
+		log.Fatal().Msg("RW_KEY is not set")
 	}
 
-	_, is_set = os.LookupEnv("API_SECRET")
+	_, is_set = os.LookupEnv("VB_BOARD_NAME")
 	if !is_set {
-		log.Fatal().Msg("API_SECRET is not set")
+		log.Fatal().Msg("VB_BOARD_NAME is not set")
 	}
 
-	_, is_set = os.LookupEnv("VB_SUBSCRIPTION_ID")
+	db_url, is_set := os.LookupEnv("DATABASE_URL")
 	if !is_set {
-		log.Fatal().Msg("VB_SUBSCRIPTION_ID is not set")
+		log.Fatal().Msg("DATABASE_URL is not set")
 	}
 
-	PORT, is_set := os.LookupEnv("PORT")
-	if !is_set {
-		PORT = "8080"
+	db, err := sql.Open("sqlite3", db_url)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to connect to db")
 	}
 
-	http.HandleFunc("/run-board", runBoard)
+	ctx := context.Background()
+	runner := &makeBoardRunner{db: db, ctx: ctx}
+
+	PORT, is_set := os.LookupEnv("BE_PORT")
+	if !is_set {
+		PORT = "8081"
+	}
+
+	http.HandleFunc("/run-board", runner.runBoard)
 
 	http.ListenAndServe(fmt.Sprintf(":%s", PORT), nil)
+	log.Info().Msg(fmt.Sprintf("Up and running on %s", PORT))
 }

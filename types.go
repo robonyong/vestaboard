@@ -62,11 +62,12 @@ type ACTransitEtdMessageWrapper struct {
 }
 
 type SubscriptionSetting struct {
-	TransitStart        string `json:"transitStart"`
-	TransitEnd          string `json:"transitEnd"`
-	TransitEnabled      bool   `json:"transitEnabled"`
-	CalendarEnabled     bool   `json:"calendarEnabled"`
-	LastCatIncidentDate string `json:"lastCatIncidentDate"`
+	Name            string `json:"name" db:"name"`
+	TransitStart    string `json:"transitStart" db:"transit_start"`
+	TransitEnd      string `json:"transitEnd" db:"transit_end"`
+	TransitEnabled  bool   `json:"transitEnabled" db:"transit_enabled"`
+	CalendarEnabled bool   `json:"calendarEnabled" db:"calendar_enabled"`
+	// LastCatIncidentDate string `json:"lastCatIncidentDate"`
 }
 
 type NewBoardReq struct {
@@ -75,9 +76,7 @@ type NewBoardReq struct {
 	Text      string
 }
 
-type VBCharReq struct {
-	Characters *[BOARD_HEIGHT][BOARD_WIDTH]uint8 `json:"characters"`
-}
+type VBCharReq *[BOARD_HEIGHT][BOARD_WIDTH]uint8
 
 type VBTextReq struct {
 	Text string `json:"text"`

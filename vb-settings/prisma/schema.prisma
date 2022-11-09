@@ -1,0 +1,16 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("PRISMA_DB_URL")
+}
+
+model local_boards {
+  name            String  @id
+  transitEnabled  Boolean @map("transit_enabled")
+  calendarEnabled Boolean @map("calendar_enabled")
+  transitStart    String  @map("transit_start")
+  transitEnd      String  @map("transit_end")
+}

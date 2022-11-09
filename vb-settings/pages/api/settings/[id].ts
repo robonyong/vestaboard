@@ -1,9 +1,5 @@
-import { Firestore } from "@google-cloud/firestore";
+import { PrismaClient } from "@prisma/client";
 import { NextApiRequest, NextApiResponse } from "next";
-
-const SUBSCRIPTION_ID = process.env.SUBSCRIPTION_ID;
-const CACHE_CREDENTIALS_PATH = process.env.CACHE_CREDENTIALS_PATH;
-const PROJECT_ID = process.env.PROJECT_ID;
 
 type Props = {
   id: string;
@@ -11,59 +7,58 @@ type Props = {
   transitEnd: string;
   transitEnabled: boolean;
   calendarEnabled: boolean;
-  lastCatIncidentDate: string;
+  // lastCatIncidentDate: string;
 };
 
-let firestoreClient: Firestore | null = null;
-
-const getFirestoreClient = (): Firestore => {
-  if (!firestoreClient) {
-    firestoreClient = new Firestore({
-      keyFilename: CACHE_CREDENTIALS_PATH,
-      projectId: PROJECT_ID,
-    });
+let prisma: PrismaClient;
+const getPrismaClient = () => {
+  console.log(process.env.PRISMA_DB_URL);
+  if (!prisma) {
+    prisma = new PrismaClient();
   }
-  return firestoreClient;
+  return prisma;
 };
 
 export default async (req: NextApiRequest, res: NextApiResponse<Props>) => {
-  const {
-    query: { id },
-    method,
-    body,
-  } = req;
+  const { query, method, body } = req;
+
+  const name = Array.isArray(query.id) ? query.id[0] : query.id;
 
   switch (method) {
     case "GET":
-      if (id === SUBSCRIPTION_ID) {
-        const client = getFirestoreClient();
-        const document = client.doc(`subscriptions/${id}`);
-        const existingSetting = await document.get();
-
-        res.status(200).json({
-          id,
-          transitStart: existingSetting.get("transitStart"),
-          transitEnd: existingSetting.get("transitEnd"),
-          transitEnabled: existingSetting.get("transitEnabled"),
-          calendarEnabled: existingSetting.get("calendarEnabled"),
-          lastCatIncidentDate: existingSetting.get("lastCatIncidentDate"),
-        });
-      } else {
+      const prismaClient = getPrismaClient();
+      const boardSettings = await prismaClient.local_boards.findUnique({
+        where: { name: name },
+      });
+      if (!boardSettings) {
         res.status(404).end("Subscription not found");
+        return;
       }
+      res.status(200).json({
+        id: boardSettings.name,
+        transitStart: boardSettings.transitStart,
+        transitEnd: boardSettings.transitEnd,
+        transitEnabled: boardSettings.transitEnabled,
+        calendarEnabled: boardSettings.calendarEnabled,
+        // lastCatIncidentDate: existingSetting.get("lastCatIncidentDate"),
+      });
       break;
     case "PUT":
-      if (id === SUBSCRIPTION_ID) {
-        const client = getFirestoreClient();
-        const document = client.doc(`subscriptions/${id}`);
-        await document.update(body);
-        const updatedResult = await document.get();
-        const updatedDocument = updatedResult.data();
+      const client = getPrismaClient();
+      const updated = await client.local_boards.update({
+        select: {
+          transitEnabled: true,
+          calendarEnabled: true,
+          transitStart: true,
+          transitEnd: true,
+        },
+        data: body,
+        where: {
+          name,
+        },
+      });
 
-        res.status(200).json({ id, ...updatedDocument } as Props);
-      } else {
-        res.status(404).end("Subscription not found");
-      }
+      res.status(200).json({ id: name, ...updated } as Props);
       break;
     default:
       res.setHeader("Allow", ["GET", "PUT"]);

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -149,43 +150,28 @@ func getVestaboardChar(char string) (uint8, bool) {
 }
 
 func postNewBoard(postReq *NewBoardReq, client *http.Client) error {
-	API_KEY, is_set := os.LookupEnv("API_KEY")
-	if !is_set {
-		log.Fatal().Msg("API_KEY is not set")
-	}
-
-	API_SECRET, is_set := os.LookupEnv("API_SECRET")
-	if !is_set {
-		log.Fatal().Msg("API_SECRET is not set")
-	}
-
-	VB_SUBSCRIPTION_ID, is_set := os.LookupEnv("VB_SUBSCRIPTION_ID")
-	if !is_set {
-		log.Fatal().Msg("VB_SUBSCRIPTION_ID is not set")
-	}
+	RW_KEY, _ := os.LookupEnv("RW_KEY")
 
 	var serializedBody []byte
 	if postReq.ReqType == "text" {
-		reqBody := &VBTextReq{
-			Text: postReq.Text,
-		}
-		serializedBody, _ = json.Marshal(reqBody)
+		return errors.New("text input not supported atm")
+		// reqBody := &VBTextReq{
+		// 	Text: postReq.Text,
+		// }
+		// serializedBody, _ = json.Marshal(reqBody)
 	} else if postReq.ReqType == "charBoard" {
-		reqBody := &VBCharReq{
-			Characters: postReq.CharBoard,
-		}
+		reqBody := postReq.CharBoard
 		serializedBody, _ = json.Marshal(reqBody)
 	}
 
-	vbUrl := fmt.Sprintf("https://platform.vestaboard.com/subscriptions/%s/message", VB_SUBSCRIPTION_ID)
+	vbUrl := "https://rw.vestaboard.com/"
 	req, err := http.NewRequest("POST", vbUrl, bytes.NewBuffer(serializedBody))
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to compose new board request")
 		return err
 	}
 
-	req.Header.Set("X-Vestaboard-Api-Key", API_KEY)
-	req.Header.Set("X-Vestaboard-Api-Secret", API_SECRET)
+	req.Header.Set("X-Vestaboard-Read-Write-Key", RW_KEY)
 
 	resp, err := client.Do(req)
 	if err != nil {

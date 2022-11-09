@@ -15,6 +15,9 @@ const Index: React.FC = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
 
   useEffect(() => {
+    if (!id) {
+      return;
+    }
     fetch(`/api/settings/${id}`).then((res) => {
       if (res.ok) {
         res.json().then((data: Settings) => setSettings(data));
