@@ -18,7 +18,6 @@ RUN npm run build
 
 FROM node:16-alpine AS prod
 ENV NODE_ENV production
-RUN npm install -g pm2
 
 WORKDIR /usr/app
 COPY ./vb-settings/package* ./vb-settings/.npmrc ./
@@ -35,7 +34,5 @@ COPY --chown=nextjs:nodejs entrypoint.sh *.db ./
 
 ENV TZ=America/Los_Angeles
 ENV PORT=$BE_PORT
-# EXPOSE $BE_PORT
-# EXPOSE $FE_PORT
 
 ENTRYPOINT ["sh", "./entrypoint.sh"]

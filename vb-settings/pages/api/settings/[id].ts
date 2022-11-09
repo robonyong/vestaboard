@@ -12,7 +12,6 @@ type Props = {
 
 let prisma: PrismaClient;
 const getPrismaClient = () => {
-  console.log(process.env.PRISMA_DB_URL);
   if (!prisma) {
     prisma = new PrismaClient();
   }

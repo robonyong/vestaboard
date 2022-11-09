@@ -189,8 +189,6 @@ func (br *makeBoardRunner) runBoard(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	log.Info().Msg(fmt.Sprint(setting.CalendarEnabled))
-
 	loc, err := time.LoadLocation("America/Los_Angeles")
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to set timezone")
