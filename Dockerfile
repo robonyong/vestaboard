@@ -27,10 +27,10 @@ RUN npm ci
 COPY --from=build /go/src/app/vestaboard /bin/vestaboard
 COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=fe-build /usr/app/public ./public
-COPY --from=fe-build --chown=nextjs:nodejs /usr/app/node_modules/.prisma/ /usr/app/node_modules/.prisma/
-COPY --from=fe-build --chown=nextjs:nodejs /usr/app/.next/ ./.next/
+COPY --from=fe-build /usr/app/node_modules/.prisma/ ./node_modules/.prisma/
+COPY --from=fe-build /usr/app/.next/ ./.next/
 
-COPY --chown=nextjs:nodejs entrypoint.sh *.db ./
+COPY entrypoint.sh ./
 
 ENV TZ=America/Los_Angeles
 ENV PORT=$BE_PORT
