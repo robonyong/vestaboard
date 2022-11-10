@@ -11,7 +11,7 @@ type Props = {
 };
 
 let prisma: PrismaClient;
-const getPrismaClient = () => {
+const getDbClient = () => {
   if (!prisma) {
     prisma = new PrismaClient();
   }
@@ -25,7 +25,7 @@ export default async (req: NextApiRequest, res: NextApiResponse<Props>) => {
 
   switch (method) {
     case "GET":
-      const prismaClient = getPrismaClient();
+      const prismaClient = getDbClient();
       const boardSettings = await prismaClient.local_boards.findUnique({
         where: { name: name },
       });
@@ -43,7 +43,7 @@ export default async (req: NextApiRequest, res: NextApiResponse<Props>) => {
       });
       break;
     case "PUT":
-      const client = getPrismaClient();
+      const client = getDbClient();
       const updated = await client.local_boards.update({
         select: {
           transitEnabled: true,

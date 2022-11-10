@@ -14,7 +14,7 @@ import (
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/option"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/glebarez/go-sqlite"
 	"github.com/rs/zerolog/log"
 )
 
@@ -277,7 +277,7 @@ func main() {
 		log.Fatal().Msg("DATABASE_URL is not set")
 	}
 
-	db, err := sql.Open("sqlite3", db_url)
+	db, err := sql.Open("sqlite", db_url)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to connect to db")
 	}

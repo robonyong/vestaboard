@@ -2,7 +2,7 @@
 
 pids=""
 
-PORT=$FE_PORT npm run start & pids="$pids $!"
+PORT=$FE_PORT node server.js & pids="$pids $!"
 
 echo "starting vestaboard"
 
