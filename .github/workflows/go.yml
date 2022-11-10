@@ -41,43 +41,36 @@ jobs:
   #         labels: ${{ steps.meta.outputs.labels }}
 
   arm:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, ARM64]
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
 
-      - uses: pguyot/arm-runner-action@v2
-        name: Setup raspbian
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
         with:
-          base_image: raspios_lite_arm64:latest
-          commands: |
-            docker ps
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # - name: Compress the release image
-      #   run: |
-      #     mv ${{ steps.build_image.outputs.image }} my-release-image.img
-      #     xz -0 -T 0 -v my-release-image.img
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@57396166ad8aefe6098280995947635806a0e6ea
+        with:
+          images: bucatini/vbcontroller
+          tags: |
+            type=sha,prefix=pi-,format=short
+            type=raw,value=pi-latest
 
-      # - name: Log in to Docker Hub
-      #   uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
-      #   with:
-      #     username: ${{ secrets.DOCKER_USER }}
-      #     password: ${{ secrets.DOCKER_PASSWORD }}
-
-      # - name: Extract metadata (tags, labels) for Docker
-      #   id: meta
-      #   uses: docker/metadata-action@57396166ad8aefe6098280995947635806a0e6ea
-      #   with:
-      #     images: bucatini/vbcontroller
-      #     tags: |
-      #       type=sha,prefix=pi-,format=short
-      #       type=raw,value=pi-latest
-
-      # - name: Build and push Docker image
-      #   uses: docker/build-push-action@c56af957549030174b10d6867f20e78cfd7debc5
-      #   with:
-      #     context: .
-      #     push: true
-      #     platforms: linux/arm64
-      #     tags: ${{ steps.meta.outputs.tags }}
-      #     labels: ${{ steps.meta.outputs.labels }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@c56af957549030174b10d6867f20e78cfd7debc5
+        with:
+          context: .
+          push: true
+          platforms: linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
