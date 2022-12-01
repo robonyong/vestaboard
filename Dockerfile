@@ -6,30 +6,34 @@ WORKDIR /go/src/app
 COPY *.go go.* ./
 RUN CGO_ENABLED=0 go build -v -tags vestaboard
 
-FROM node:16-bullseye-slim AS fe-build
+
+FROM node:16-bullseye-slim AS fe-pre
 ENV NEXT_TELEMETRY_DISABLED 1
+
 RUN apt-get update && \
   apt-get upgrade -y && \
-  apt-get install -y build-essential openssl
+  apt-get install -y openssl ca-certificates
 
 WORKDIR /usr/app
 
 COPY ./vb-settings/package* ./vb-settings/.npmrc ./
 RUN npm ci
 
+
+FROM fe-pre AS fe-build
+WORKDIR /usr/app
+
 COPY ./vb-settings/ .
 
 RUN npm run prisma:gen
 RUN npm run build
 
-FROM node:16-bullseye-slim AS prod
+
+FROM fe-pre AS prod
 ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
-RUN apt-get update && \
-  apt-get upgrade -y && \
-  apt-get install -y build-essential openssl ca-certificates
 
 WORKDIR /usr/app
+RUN npm prune
 
 COPY --from=build /go/src/app/vestaboard /usr/local/bin/vestaboard
 COPY --from=build /usr/share/zoneinfo /usr/local/share/zoneinfo
