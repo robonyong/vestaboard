@@ -172,6 +172,7 @@ func postNewBoard(postReq *NewBoardReq, client *http.Client) error {
 	}
 
 	req.Header.Set("X-Vestaboard-Read-Write-Key", RW_KEY)
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
