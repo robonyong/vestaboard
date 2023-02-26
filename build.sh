@@ -1,35 +1,37 @@
 #!/bin/bash
-
 script_dir=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
-
 RED='\033[0;31m'
 NC='\033[0m'
 
-if [ -d tmp-fe-build ]; then
-  rm -rf tmp-fe-build
+if [ -z "$1" ]
+  then
+    echo -e "${RED}Please provide a device arg: pi or mac${NC}"
+    exit 1
 fi
-mkdir tmp-fe-build
+device=$1
+if [ "$device" != "pi" ] && [ "$device" != "mac" ]
+  then
+    echo -e "${RED}Device arg must be 'pi' or 'mac'${NC}"
+    exit 1
+fi
 
-cd ${script_dir}/vb-settings
-npm run prisma:gen
-npm run build
-
-cd ${script_dir}
-
-cp -r vb-settings/public tmp-fe-build
-cp -r vb-settings/.next/standalone/  tmp-fe-build
-cp -r vb-settings/.next/static tmp-fe-build/.next/static
-mv tmp-fe-build/.next tmp-fe-build/dotnext
-mv tmp-fe-build/node_modules tmp-fe-build/nodemodules
+source ./util.sh
+build_fe
 
 if [ $? -eq 0 ] 
 then 
   echo "Frontend files built -- beginning server build..."
-  docker build --squash --platform=arm64 . -t bucatini/vbcontroller:pi-latest
+  if [ "$device" == "pi" ]
+    then
+      echo "Building for pi"
+      docker build --squash --platform=arm64 . -t bucatini/vbcontroller:pi-latest
+    else
+      echo "Building for mac"
+      docker build --squash --platform=arm64 . -t bucatini/vbcontroller:mac-latest
+  fi
   rm -rf tmp-fe-build
 else
   echo -e "${RED}Failed to build frontend files -- please check the logged output!${NC}"
   rm -rf tmp-fe-build
   exit 1
 fi
-
