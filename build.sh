@@ -20,11 +20,12 @@ cp -r vb-settings/public tmp-fe-build
 cp -r vb-settings/.next/standalone/  tmp-fe-build
 cp -r vb-settings/.next/static tmp-fe-build/.next/static
 mv tmp-fe-build/.next tmp-fe-build/dotnext
+mv tmp-fe-build/node_modules tmp-fe-build/nodemodules
 
 if [ $? -eq 0 ] 
 then 
   echo "Frontend files built -- beginning server build..."
-  docker build --platform=arm64 . -t bucatini/vbcontroller:pi-latest
+  docker build --squash --platform=arm64 . -t bucatini/vbcontroller:pi-latest
   rm -rf tmp-fe-build
 else
   echo -e "${RED}Failed to build frontend files -- please check the logged output!${NC}"

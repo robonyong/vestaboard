@@ -20,6 +20,7 @@ WORKDIR /usr/app
 
 COPY tmp-fe-build/. /usr/app/
 RUN mv dotnext .next
+RUN mv nodemodules node_modules
 
 COPY --from=build /go/src/app/vestaboard /usr/local/bin/vestaboard
 COPY --from=build /usr/share/zoneinfo /usr/local/share/zoneinfo
