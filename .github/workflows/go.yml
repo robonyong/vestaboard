@@ -37,7 +37,6 @@ jobs:
         with:
           images: bucatini/vbcontroller
           tags: |
-            type=sha,format=short
             type=raw,value=latest
 
       - name: Build and push Docker image
