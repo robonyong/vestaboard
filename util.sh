@@ -16,7 +16,11 @@ function build_fe {
   cd ${script_dir}
 
   cp -r vb-settings/public tmp-fe-build
-  cp -rT vb-settings/.next/standalone  tmp-fe-build
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    cp -r vb-settings/.next/standalone/  tmp-fe-build
+  else
+    cp -rT vb-settings/.next/standalone  tmp-fe-build
+  fi
   cp -r vb-settings/.next/static tmp-fe-build/.next/static
   mv tmp-fe-build/.next tmp-fe-build/dotnext
   mv tmp-fe-build/node_modules tmp-fe-build/nodemodules
