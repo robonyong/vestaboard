@@ -27,7 +27,7 @@ then
       docker build --squash --platform=arm64 . -t bucatini/vbcontroller:pi-latest
     else
       echo "Building for mac"
-      docker build --squash --platform=arm64 . -t bucatini/vbcontroller:mac-latest
+      docker build --squash . -t bucatini/vbcontroller:mac-latest
   fi
   rm -rf tmp-fe-build
 else
