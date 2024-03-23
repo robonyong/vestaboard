@@ -37,7 +37,7 @@ func getCalendarLines(ctx context.Context, s *calendar.Service, dayStart time.Ti
 			continue
 		}
 		for _, e := range events.Items {
-			if e.Status != "cancelled" && e.Start != nil && e.Summary != "" {
+			if e.EventType == "default" && e.Status != "cancelled" && e.Start != nil && e.Summary != "" {
 				validEvents = append(validEvents, &EventWithColor{e, color})
 			}
 		}

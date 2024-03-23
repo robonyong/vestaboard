@@ -67,6 +67,8 @@ type SubscriptionSetting struct {
 	TransitEnd      string `json:"transitEnd" db:"transit_end"`
 	TransitEnabled  bool   `json:"transitEnabled" db:"transit_enabled"`
 	CalendarEnabled bool   `json:"calendarEnabled" db:"calendar_enabled"`
+	TransitDays     string `json:"transitDays" db:"transit_days"`
+	CalendarDays    string `json:"calendarDays" db:"calendar_days"`
 	// LastCatIncidentDate string `json:"lastCatIncidentDate"`
 }
 

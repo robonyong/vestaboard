@@ -7,6 +7,8 @@ type Props = {
   transitEnd: string;
   transitEnabled: boolean;
   calendarEnabled: boolean;
+  transitDays: string;
+  calendarDays: string;
   // lastCatIncidentDate: string;
 };
 
@@ -39,6 +41,8 @@ export default async (req: NextApiRequest, res: NextApiResponse<Props>) => {
         transitEnd: boardSettings.transitEnd,
         transitEnabled: boardSettings.transitEnabled,
         calendarEnabled: boardSettings.calendarEnabled,
+        transitDays: boardSettings.transitDays,
+        calendarDays: boardSettings.calendarDays,
         // lastCatIncidentDate: existingSetting.get("lastCatIncidentDate"),
       });
       break;
@@ -50,6 +54,8 @@ export default async (req: NextApiRequest, res: NextApiResponse<Props>) => {
           calendarEnabled: true,
           transitStart: true,
           transitEnd: true,
+          transitDays: true,
+          calendarDays: true,
         },
         data: body,
         where: {

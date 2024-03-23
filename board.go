@@ -187,7 +187,7 @@ func postNewBoard(postReq *NewBoardReq, client *http.Client) error {
 	}
 	var respBody map[string]interface{}
 	json.Unmarshal([]byte(body), &respBody)
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != 200 && resp.StatusCode != 304 {
 		log.Error().
 			Int("response_code", resp.StatusCode).
 			Interface("response_body", respBody).

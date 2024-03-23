@@ -51,6 +51,20 @@ func trimLine(line []string) []string {
 	return line
 }
 
+func parseDays(s string) map[int]bool {
+	tmp := strings.Split(s, ",")
+	values := make(map[int]bool, len(tmp))
+	for _, raw := range tmp {
+		v, err := strconv.Atoi(raw)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to parse a day from string")
+			continue
+		}
+		values[v] = true
+	}
+	return values
+}
+
 func hasAnyEvents(ctx context.Context, s *calendar.Service, loc *time.Location) bool {
 	cals := os.Getenv("CALENDARS")
 
@@ -177,7 +191,7 @@ func (br *makeBoardRunner) runBoard(w http.ResponseWriter, req *http.Request) {
 
 	row := br.db.QueryRow(fmt.Sprintf("SELECT * FROM local_boards WHERE name = '%s'", VB_BOARD_NAME))
 	var setting SubscriptionSetting
-	if err := row.Scan(&setting.Name, &setting.TransitEnabled, &setting.CalendarEnabled, &setting.TransitStart, &setting.TransitEnd); err != nil {
+	if err := row.Scan(&setting.Name, &setting.TransitEnabled, &setting.CalendarEnabled, &setting.TransitStart, &setting.TransitEnd, &setting.TransitDays, &setting.CalendarDays); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			http.Error(w, http.StatusText(http.StatusNotFound),
 				http.StatusNotFound)
@@ -208,8 +222,10 @@ func (br *makeBoardRunner) runBoard(w http.ResponseWriter, req *http.Request) {
 
 	transitStart := time.Date(now.Year(), now.Month(), now.Day(), transitStartH, transitStartM, 0, 0, loc)
 	transitEnd := time.Date(now.Year(), now.Month(), now.Day(), transitEndH, transitEndM, 0, 0, loc)
-	calendarStart := time.Date(now.Year(), now.Month(), now.Day(), 9, 0, 0, 0, loc)
+	transitEnabledDays := parseDays(setting.TransitDays)
+	calendarStart := time.Date(now.Year(), now.Month(), now.Day(), 8, 50, 0, 0, loc)
 	calendarEnd := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, loc)
+	calendarEnabledDays := parseDays(setting.CalendarDays)
 
 	calPath, is_set := os.LookupEnv("CALENDAR_CREDENTIALS_PATH")
 	if !is_set {
@@ -227,7 +243,9 @@ func (br *makeBoardRunner) runBoard(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if setting.TransitEnabled && now.After(transitStart) && now.Before(transitEnd) {
+	_, transitToday := transitEnabledDays[int(now.Weekday())]
+	_, calendarToday := calendarEnabledDays[int(now.Weekday())]
+	if setting.TransitEnabled && transitToday && now.After(transitStart) && now.Before(transitEnd) {
 		log.Info().Interface("transit_start", transitStart).Interface("transit_end", transitEnd).Msg("Running Transit")
 		err = runTransit(httpClient, loc)
 		if err != nil {
@@ -236,7 +254,7 @@ func (br *makeBoardRunner) runBoard(w http.ResponseWriter, req *http.Request) {
 				http.StatusInternalServerError)
 			return
 		}
-	} else if now.After(calendarStart) && now.Before(calendarEnd) && setting.CalendarEnabled && hasAnyEvents(br.ctx, s, loc) {
+	} else if now.After(calendarStart) && now.Before(calendarEnd) && setting.CalendarEnabled && calendarToday && hasAnyEvents(br.ctx, s, loc) {
 		log.Info().Msg("Running Calendar")
 		err = runCalendar(br.ctx, s, httpClient, loc)
 		if err != nil {

@@ -15,4 +15,6 @@ model local_boards {
   calendarEnabled Boolean @map("calendar_enabled")
   transitStart    String  @map("transit_start")
   transitEnd      String  @map("transit_end")
+  transitDays     String  @map("transit_days")
+  calendarDays    String  @map("calendar_days")
 }
