@@ -7,7 +7,7 @@ COPY *.go go.* ./
 RUN CGO_ENABLED=0 go build -v -tags vestaboard
 
 
-FROM node:18-bullseye-slim AS pre
+FROM node:20-bullseye-slim AS pre
 RUN apt-get update && \
   apt-get upgrade -y && \
   apt-get install -y openssl ca-certificates
