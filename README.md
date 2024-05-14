@@ -3,5 +3,4 @@
 Personal vestaboard Installable that shows transit times, google calendar schedule, and a cat incident tracker throughout the day.
 
 ## infra
-These are glued together with two google cloud runs: a go app (cos I need the practice) to interact with the board & a nextjs app to make manual input changes for the go app to read.
-The go app is triggered throughout the day by two cloud schedulers, one every 2 minutes during a transit-reporting window & one every 10 minutes the rest of the day.
+BE is a go api, FE is a nextjs app. both are bundled into a single docker image that is deployed to a raspberry pi that communicates with the vestaboard API. a local cron job triggers a rescan of the latest data every 5 minutes. This docker image used to be deployed to cloud run, but I wanted to pinch a few pennies.
