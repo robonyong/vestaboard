@@ -9,9 +9,9 @@ function build_fe {
   mkdir tmp-fe-build
 
   cd ${script_dir}/vb-settings
-  npm ci
-  npm run prisma:gen
-  npm run build
+  pnpm i
+  pnpm run prisma:gen
+  pnpm run build
 
   cd ${script_dir}
 

@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@prisma/client": "^5.11.0",
+    "@types/node": "^20.12.11",
     "@types/react": "^18.2.67",
     "@types/react-dom": "^18.2.22",
     "prisma": "^5.11.0",

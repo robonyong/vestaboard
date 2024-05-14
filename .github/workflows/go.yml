@@ -1,10 +1,8 @@
 name: Build & Push
 
-on: push
-
-# on:
-# push:
-# branches: [master]
+on:
+  push:
+    branches: [master]
 
 jobs:
   build:
@@ -23,6 +21,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
 
       - name: Build FE
         run: ./build_fe.sh
