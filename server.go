@@ -267,7 +267,7 @@ func (br *makeBoardRunner) runBoard(w http.ResponseWriter, req *http.Request) {
 		// log.Info().Str("from_date", setting.LastCatIncidentDate).Msg("Running Cat Incident Tracker")
 		// runCatIncidentTracker(httpClient, loc, setting.LastCatIncidentDate)
 		log.Info().Msg("Running Cat Incident Tracker")
-		runCatIncidentTracker(httpClient, loc, "")
+		err := runCatIncidentTracker(httpClient, loc, "")
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusInternalServerError),
 				http.StatusInternalServerError)
