@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/dist/client/router";
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
 
 import { Settings } from "../components/SubscriptionSetting";
 

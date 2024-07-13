@@ -116,7 +116,7 @@ function SubscriptionSetting({ settings }: Props) {
           onClose={() => settingsMutator.reset()}
         />
         <div className={styles.main}>
-          <Title>Robin's Vestaboard Settings </Title>
+          <Title>Robin&apos;s Vestaboard Settings </Title>
           <Spacer size="large" />
           <SubTitle>Transit Schedules </SubTitle>
           <Controller
