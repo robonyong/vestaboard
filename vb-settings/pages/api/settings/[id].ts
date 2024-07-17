@@ -20,7 +20,10 @@ const getDbClient = () => {
   return prisma;
 };
 
-export default async (req: NextApiRequest, res: NextApiResponse<Props>) => {
+export default async function boardSettingHandler(
+  req: NextApiRequest,
+  res: NextApiResponse<Props>
+) {
   const { query, method, body } = req;
 
   const name = Array.isArray(query.id) ? query.id[0] : query.id;
@@ -69,4 +72,4 @@ export default async (req: NextApiRequest, res: NextApiResponse<Props>) => {
       res.setHeader("Allow", ["GET", "PUT"]);
       res.status(405).end(`Method ${method} Not Allowed`);
   }
-};
+}
