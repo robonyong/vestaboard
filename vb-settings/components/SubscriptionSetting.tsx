@@ -4,6 +4,7 @@ import {
   Button,
   CheckBox,
   Container,
+  Divider,
   Input,
   Medium,
   Progress,
@@ -146,7 +147,7 @@ function SubscriptionSetting({ settings }: Props) {
             )}
             name="transitStart"
           />
-          <Spacer size="medium" />
+          <Spacer size="small" />
           <Controller
             control={control}
             render={({ field: { value } }) => (
@@ -160,7 +161,7 @@ function SubscriptionSetting({ settings }: Props) {
             )}
             name="transitEnd"
           />
-          <Spacer size="medium" />
+          <Spacer size="small" />
           <Medium>Transit Days</Medium>
           <Controller
             control={control}
@@ -232,7 +233,10 @@ function SubscriptionSetting({ settings }: Props) {
               />
             )}
           />
+          <Divider />
+          <Spacer size="medium" />
           <SubTitle>Calendar Events</SubTitle>
+          <Spacer size="small" />
           <Controller
             control={control}
             render={({ field: { value } }) => (

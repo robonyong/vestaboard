@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/dist/client/router";
 import dynamic from "next/dynamic";
 
-import { Settings } from "../components/SubscriptionSetting";
+import type { Settings } from "../../components/SubscriptionSetting";
 
-const VBSettings = dynamic(import("../components/SubscriptionSetting"), {
+const VBSettings = dynamic(import("../../components/SubscriptionSetting"), {
   ssr: false,
 });
 

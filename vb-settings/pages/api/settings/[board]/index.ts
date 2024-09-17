@@ -1,5 +1,5 @@
-import { PrismaClient } from "@prisma/client";
 import { NextApiRequest, NextApiResponse } from "next";
+import { getDbClient } from "../../../../lib/db";
 
 type Props = {
   id: string;
@@ -12,26 +12,18 @@ type Props = {
   // lastCatIncidentDate: string;
 };
 
-let prisma: PrismaClient;
-const getDbClient = () => {
-  if (!prisma) {
-    prisma = new PrismaClient();
-  }
-  return prisma;
-};
-
 export default async function boardSettingHandler(
   req: NextApiRequest,
   res: NextApiResponse<Props>
 ) {
   const { query, method, body } = req;
 
-  const name = Array.isArray(query.id) ? query.id[0] : query.id;
+  const name = Array.isArray(query.board) ? query.board[0] : query.board;
 
   switch (method) {
     case "GET":
       const prismaClient = getDbClient();
-      const boardSettings = await prismaClient.local_boards.findUnique({
+      const boardSettings = await prismaClient.localBoard.findUnique({
         where: { name: name },
       });
       if (!boardSettings) {
@@ -51,7 +43,7 @@ export default async function boardSettingHandler(
       break;
     case "PUT":
       const client = getDbClient();
-      const updated = await client.local_boards.update({
+      const updated = await client.localBoard.update({
         select: {
           transitEnabled: true,
           calendarEnabled: true,

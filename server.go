@@ -65,16 +65,14 @@ func parseDays(s string) map[int]bool {
 	return values
 }
 
-func hasAnyEvents(ctx context.Context, s *calendar.Service, loc *time.Location) bool {
-	cals := os.Getenv("CALENDARS")
-
-	if len(cals) == 0 {
+func hasAnyEvents(ctx context.Context, s *calendar.Service, calendars []string, loc *time.Location) bool {
+	if len(calendars) == 0 {
 		return false
 	}
 
 	now := time.Now().In(loc)
 	calEnd := time.Date(now.Year(), now.Month(), now.Day(), 17, 59, 59, 999999999, loc)
-	for _, cId := range strings.Split(cals, ",") {
+	for _, cId := range calendars {
 		events, err := s.Events.List(cId).
 			SingleEvents(true).
 			TimeMin(now.Format(time.RFC3339)).
@@ -135,17 +133,15 @@ func runTransit(client *http.Client, loc *time.Location) error {
 	return err
 }
 
-func runCalendar(ctx context.Context, s *calendar.Service, client *http.Client, loc *time.Location) error {
-	cals := os.Getenv("CALENDARS")
-
-	if len(cals) == 0 {
+func runCalendar(ctx context.Context, s *calendar.Service, client *http.Client, calendars []string, loc *time.Location) error {
+	if len(calendars) == 0 {
 		return nil
 	}
 
 	now := time.Now().In(loc)
 	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 	dayEnd := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 999999999, loc)
-	calendarLines := getCalendarLines(ctx, s, dayStart, dayEnd)
+	calendarLines := getCalendarLines(ctx, s, calendars, dayStart, dayEnd)
 	nextBoard := [BOARD_HEIGHT][BOARD_WIDTH]uint8{}
 
 	for i, line := range calendarLines {
@@ -245,6 +241,25 @@ func (br *makeBoardRunner) runBoard(w http.ResponseWriter, req *http.Request) {
 
 	_, transitToday := transitEnabledDays[int(now.Weekday())]
 	_, calendarToday := calendarEnabledDays[int(now.Weekday())]
+
+	calendarRows, err := br.db.QueryContext(br.ctx, fmt.Sprintf("SELECT email FROM emails WHERE board_id = '%s' AND connected = true", VB_BOARD_NAME))
+
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get calendar rows")
+		http.Error(w, http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError)
+		return
+	}
+	defer calendarRows.Close()
+
+	calendars := make([]string, 0)
+
+	for calendarRows.Next() {
+		var email string
+		calendarRows.Scan(&email)
+		calendars = append(calendars, email)
+	}
+
 	if setting.TransitEnabled && transitToday && now.After(transitStart) && now.Before(transitEnd) {
 		log.Info().Interface("transit_start", transitStart).Interface("transit_end", transitEnd).Msg("Running Transit")
 		err = runTransit(httpClient, loc)
@@ -254,9 +269,9 @@ func (br *makeBoardRunner) runBoard(w http.ResponseWriter, req *http.Request) {
 				http.StatusInternalServerError)
 			return
 		}
-	} else if now.After(calendarStart) && now.Before(calendarEnd) && setting.CalendarEnabled && calendarToday && hasAnyEvents(br.ctx, s, loc) {
+	} else if now.After(calendarStart) && now.Before(calendarEnd) && setting.CalendarEnabled && calendarToday && hasAnyEvents(br.ctx, s, calendars, loc) {
 		log.Info().Msg("Running Calendar")
-		err = runCalendar(br.ctx, s, httpClient, loc)
+		err = runCalendar(br.ctx, s, httpClient, calendars, loc)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to run calendar")
 			http.Error(w, http.StatusText(http.StatusInternalServerError),
