@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -16,7 +15,7 @@ type EventWithColor struct {
 	Color string
 }
 
-func getCalendarLines(ctx context.Context, s *calendar.Service, dayStart time.Time, dayEnd time.Time) [][]string {
+func getCalendarLines(ctx context.Context, s *calendar.Service, calendars []string, dayStart time.Time, dayEnd time.Time) [][]string {
 	COLORS := [2]string{"RED", "BLUE"}
 	log.Info().
 		Str("start", dayStart.Format(time.RFC3339)).
@@ -24,8 +23,7 @@ func getCalendarLines(ctx context.Context, s *calendar.Service, dayStart time.Ti
 		Msg("Fetching Events")
 
 	validEvents := []*EventWithColor{}
-	cals := os.Getenv("CALENDARS")
-	for i, cId := range strings.Split(cals, ",") {
+	for i, cId := range calendars {
 		color := COLORS[i]
 		events, err := s.Events.List(cId).
 			SingleEvents(true).

@@ -1,0 +1,39 @@
+.main {
+  padding: 5rem 2rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.emailContainer {
+  padding: 2rem 0;
+  > .emailRow:not(:first-of-type) {
+    border-top: 1px solid white;
+  }
+}
+
+.emailRow {
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+
+  &:hover {
+    .icons {
+      opacity: 1;
+    }
+  }
+}
+
+.email {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 18px;
+}
+
+.icons {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  opacity: 0;
+}

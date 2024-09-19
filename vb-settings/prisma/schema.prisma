@@ -9,12 +9,32 @@ datasource db {
   url      = env("PRISMA_DB_URL")
 }
 
-model local_boards {
+model LocalBoard {
   name            String  @id
   transitEnabled  Boolean @map("transit_enabled")
   calendarEnabled Boolean @map("calendar_enabled")
   transitStart    String  @map("transit_start")
   transitEnd      String  @map("transit_end")
-  transitDays     String  @map("transit_days")
-  calendarDays    String  @map("calendar_days")
+  transitDays     String  @default("") @map("transit_days")
+  calendarDays    String  @default("") @map("calendar_days")
+  emails          Email[]
+
+  @@map("local_boards")
+}
+
+model Email {
+  boardId   String     @map("board_id")
+  email     String
+  connected Boolean
+  board     LocalBoard @relation(fields: [boardId], references: [name], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([boardId, email], map: "sqlite_autoindex_emails_1")
+  @@map("emails")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model schema_migrations {
+  version String? @id
+
+  @@ignore
 }
