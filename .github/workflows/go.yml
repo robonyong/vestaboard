@@ -2,7 +2,7 @@ name: Build & Push
 
 on:
   push:
-    branches: [fix-fe]
+    branches: [main]
 
 jobs:
   build:
