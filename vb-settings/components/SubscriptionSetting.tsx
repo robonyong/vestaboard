@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Alert,
   Box,
   Button,
   Checkbox,
@@ -8,13 +7,13 @@ import {
   Container,
   Divider,
   FormControlLabel,
-  Snackbar,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
 import { useCallback } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
+import StatusSnackbar from "./StatusSnackbar";
 import styles from "../styles/Settings.module.css";
 
 export interface Settings {
@@ -47,14 +46,14 @@ const calendarDayOptions = [
 ] as const;
 
 function SubscriptionSetting({ settings }: Props) {
-  const { control, handleSubmit, setValue, watch } = useForm({
+  const { control, handleSubmit, setValue } = useForm({
     defaultValues: settings,
   });
 
-  const [transitEnabled, calendarEnabled] = watch([
-    "transitEnabled",
-    "calendarEnabled",
-  ]);
+  const [transitEnabled, calendarEnabled] = useWatch({
+    control,
+    name: ["transitEnabled", "calendarEnabled"],
+  });
 
   const onDayChange = useCallback(
     (
@@ -100,7 +99,7 @@ function SubscriptionSetting({ settings }: Props) {
         let error = res.statusText;
         try {
           error = await res.text();
-        } catch (err) {
+        } catch {
           console.error("unable to process error message from server");
         }
         throw new Error(error);
@@ -118,28 +117,23 @@ function SubscriptionSetting({ settings }: Props) {
   return (
     <Box className={styles.appShell}>
       <Container maxWidth="sm">
-        <Snackbar
-          open={!settingsMutator.isIdle && !settingsMutator.isPending}
-          autoHideDuration={4000}
+        <StatusSnackbar
+          open={settingsMutator.isSuccess || settingsMutator.isError}
           onClose={() => settingsMutator.reset()}
-        >
-          <Alert
-            severity={settingsMutator.isSuccess ? "success" : "error"}
-            onClose={() => settingsMutator.reset()}
-            variant="filled"
-          >
-            {settingsMutator.isSuccess
-              ? "Saved!"
-              : `Failed to save: ${settingsMutator.error?.message}`}
-          </Alert>
-        </Snackbar>
+          successMessage="Saved!"
+          errorMessage={
+            settingsMutator.isError
+              ? `Failed to save: ${settingsMutator.error.message}`
+              : undefined
+          }
+        />
         <main className={styles.main}>
-          <Typography variant="h4" component="h1" fontWeight={700}>
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Robin&apos;s Vestaboard Settings
           </Typography>
 
           <Stack spacing={2.5}>
-            <Typography variant="h5" component="h2">
+            <Typography variant="h5">
               Transit Schedules
             </Typography>
             <Controller
@@ -191,7 +185,7 @@ function SubscriptionSetting({ settings }: Props) {
                 />
               )}
             />
-            <Typography variant="subtitle1" fontWeight={700}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               Transit Days
             </Typography>
             <Stack>
@@ -222,7 +216,7 @@ function SubscriptionSetting({ settings }: Props) {
           <Divider />
 
           <Stack spacing={2.5}>
-            <Typography variant="h5" component="h2">
+            <Typography variant="h5">
               Calendar Events
             </Typography>
             <Controller
@@ -242,7 +236,7 @@ function SubscriptionSetting({ settings }: Props) {
                 />
               )}
             />
-            <Typography variant="subtitle1" fontWeight={700}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               Calendar Days
             </Typography>
             <Stack>

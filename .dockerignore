@@ -6,3 +6,5 @@ Dockerfile
 **/.next
 **/.*env
 
+!tmp-fe-build/nodemodules/
+!tmp-fe-build/nodemodules/**

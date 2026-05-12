@@ -13,8 +13,9 @@ RUN apt-get update && \
   apt-get install -y openssl ca-certificates
 
 FROM pre AS prod
-ENV NEXT_TELEMETRY_DISABLED 1
-ENV NODE_ENV production
+ARG BE_PORT=3000
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
 
 WORKDIR /usr/app
 
@@ -28,6 +29,6 @@ COPY --from=build /usr/share/zoneinfo /usr/local/share/zoneinfo
 COPY entrypoint.sh ./
 
 ENV TZ=America/Los_Angeles
-ENV PORT=$BE_PORT
+ENV PORT=${BE_PORT}
 
 ENTRYPOINT ["sh", "./entrypoint.sh"]

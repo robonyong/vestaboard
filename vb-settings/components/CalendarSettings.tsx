@@ -1,7 +1,6 @@
 import type { Email } from "@prisma/client";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import {
-  Alert,
   Box,
   Button,
   Container,
@@ -10,7 +9,6 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
-  Snackbar,
   Stack,
   TextField,
   Typography,
@@ -19,6 +17,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import StatusSnackbar from "./StatusSnackbar";
 import styles from "../styles/Calendar.module.css";
 
 interface CalendarSettingsProps {
@@ -55,7 +54,7 @@ function CalendarSettings({ boardId, emails }: CalendarSettingsProps) {
         let error = res.statusText;
         try {
           error = await res.text();
-        } catch (err) {
+        } catch {
           console.error("unable to process error message from server");
         }
         throw new Error(error);
@@ -81,7 +80,7 @@ function CalendarSettings({ boardId, emails }: CalendarSettingsProps) {
         let error = res.statusText;
         try {
           error = await res.text();
-        } catch (err) {
+        } catch {
           console.error("unable to process error message from server");
         }
         throw new Error(error);
@@ -108,7 +107,7 @@ function CalendarSettings({ boardId, emails }: CalendarSettingsProps) {
         let error = res.statusText;
         try {
           error = await res.text();
-        } catch (err) {
+        } catch {
           console.error("unable to process error message from server");
         }
         throw new Error(error);
@@ -131,24 +130,19 @@ function CalendarSettings({ boardId, emails }: CalendarSettingsProps) {
   return (
     <Box className={styles.appShell}>
       <Container maxWidth="sm">
-        <Snackbar
-          open={!emailMutator.isIdle && !emailMutator.isPending}
-          autoHideDuration={4000}
+        <StatusSnackbar
+          open={emailMutator.isSuccess || emailMutator.isError}
           onClose={() => emailMutator.reset()}
-        >
-          <Alert
-            severity={emailMutator.isSuccess ? "success" : "error"}
-            onClose={() => emailMutator.reset()}
-            variant="filled"
-          >
-            {emailMutator.isSuccess
-              ? "Saved!"
-              : `Failed to save: ${emailMutator.error?.message}`}
-          </Alert>
-        </Snackbar>
+          successMessage="Saved!"
+          errorMessage={
+            emailMutator.isError
+              ? `Failed to save: ${emailMutator.error.message}`
+              : undefined
+          }
+        />
 
         <main className={styles.main}>
-          <Stack direction="row" alignItems="center" spacing={1}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
             <IconButton
               color="inherit"
               aria-label="Back"
@@ -156,7 +150,7 @@ function CalendarSettings({ boardId, emails }: CalendarSettingsProps) {
             >
               <ArrowBackIcon />
             </IconButton>
-            <Typography variant="h4" component="h1" fontWeight={700}>
+            <Typography variant="h4" sx={{ fontWeight: 700 }}>
               Calendars
             </Typography>
           </Stack>
@@ -235,7 +229,7 @@ function CalendarSettings({ boardId, emails }: CalendarSettingsProps) {
 
           {emails.length > 0 && (
             <section className={styles.emailContainer}>
-              <Typography variant="h6" component="h2">
+              <Typography variant="h6">
                 Added Calendars
               </Typography>
               {emails.map((email) => (

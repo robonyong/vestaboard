@@ -6,7 +6,7 @@ export default async function emailsHandler(
   req: NextApiRequest,
   res: NextApiResponse<string>
 ) {
-  const { query, method, body } = req;
+  const { query, method } = req;
 
   const boardName = Array.isArray(query.board) ? query.board[0] : query.board;
   const email = Array.isArray(query.email) ? query.email[0] : query.email;
@@ -33,7 +33,7 @@ export default async function emailsHandler(
           res.revalidate(`/api/settings/${boardName}/emails`);
         }
         res.status(204).end();
-      } catch (error) {
+      } catch {
         const { count } = await prismaClient.email.updateMany({
           data: { connected: false },
           where: { email, boardId: boardName },

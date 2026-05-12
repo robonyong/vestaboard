@@ -1,4 +1,4 @@
-const fs = require("fs/promises");
+import fs from "fs/promises";
 
 const report = async () => {
   const filePath = process.argv[2];
