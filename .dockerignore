@@ -6,5 +6,12 @@ Dockerfile
 **/.next
 **/.*env
 
+!tmp-fe-build/
+!tmp-fe-build/dotnext/
+!tmp-fe-build/dotnext/**
 !tmp-fe-build/nodemodules/
 !tmp-fe-build/nodemodules/**
+!tmp-fe-build/public/
+!tmp-fe-build/public/**
+!tmp-fe-build/package.json
+!tmp-fe-build/server.js
