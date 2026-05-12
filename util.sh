@@ -9,6 +9,7 @@ function build_fe {
   mkdir tmp-fe-build
 
   cd ${script_dir}/vb-settings
+  export NEXT_PRIVATE_STANDALONE=true
   pnpm i
   pnpm run prisma:gen
   pnpm run build
