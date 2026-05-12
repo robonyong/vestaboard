@@ -45,6 +45,8 @@ const calendarDayOptions = [
   ["0", "Sunday"],
 ] as const;
 
+const serializeDays = (days: string[]) => days.filter(Boolean).join(",");
+
 function SubscriptionSetting({ settings }: Props) {
   const { control, handleSubmit, setValue } = useForm({
     defaultValues: settings,
@@ -85,8 +87,8 @@ function SubscriptionSetting({ settings }: Props) {
       const { id, ...restData } = data;
       const serializedData = {
         ...restData,
-        transitDays: data.transitDays.join(","),
-        calendarDays: data.calendarDays.join(","),
+        transitDays: serializeDays(data.transitDays),
+        calendarDays: serializeDays(data.calendarDays),
       };
       const res = await fetch(`/api/settings/${id}`, {
         method: "PUT",

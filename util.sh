@@ -11,6 +11,7 @@ function build_fe {
 
   cd "${script_dir}/vb-settings"
   export NEXT_PRIVATE_STANDALONE=true
+  rm -rf node_modules .next
   pnpm install --frozen-lockfile
   pnpm run prisma:gen
   pnpm run build

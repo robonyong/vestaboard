@@ -8,6 +8,8 @@ const VBSettings = dynamic(() => import("../../components/SubscriptionSetting"),
   ssr: false,
 });
 
+const parseDays = (days: string) => days.split(",").filter(Boolean);
+
 const Index: React.FC = () => {
   const router = useRouter();
   const { id } = router.query;
@@ -21,8 +23,8 @@ const Index: React.FC = () => {
       const settings = await resp.json();
       const deserializedSettings: Settings = {
         ...settings,
-        transitDays: settings.transitDays.split(","),
-        calendarDays: settings.calendarDays.split(","),
+        transitDays: parseDays(settings.transitDays),
+        calendarDays: parseDays(settings.calendarDays),
       };
       return deserializedSettings;
     },

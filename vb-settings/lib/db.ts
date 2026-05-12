@@ -1,4 +1,4 @@
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaClient } from "@prisma/client";
 
 let prisma: PrismaClient | undefined;
@@ -15,7 +15,7 @@ const getDatabaseUrl = () => {
 
 export const getDbClient = () => {
   if (!prisma) {
-    const adapter = new PrismaBetterSqlite3({
+    const adapter = new PrismaLibSql({
       url: getDatabaseUrl(),
     });
 
