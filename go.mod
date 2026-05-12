@@ -1,8 +1,8 @@
 module vestaboard
 
-go 1.21
+go 1.26
 
-toolchain go1.22.3
+toolchain go1.26.3
 
 require (
 	github.com/glebarez/go-sqlite v1.22.0

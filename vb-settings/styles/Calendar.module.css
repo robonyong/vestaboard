@@ -1,8 +1,15 @@
+.appShell {
+  min-height: 100vh;
+  background: #1f2122;
+  color: #fff;
+}
+
 .main {
   padding: 5rem 2rem;
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 2rem;
 }
 
 .emailContainer {
@@ -36,4 +43,12 @@
   gap: 4px;
   align-items: center;
   opacity: 0;
+}
+
+.statusConnected {
+  color: #2e7d32;
+}
+
+.statusDisconnected {
+  color: #ed6c02;
 }

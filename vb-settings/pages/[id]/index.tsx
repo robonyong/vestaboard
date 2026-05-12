@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 
 import type { Settings } from "../../components/SubscriptionSetting";
 
-const VBSettings = dynamic(import("../../components/SubscriptionSetting"), {
+const VBSettings = dynamic(() => import("../../components/SubscriptionSetting"), {
   ssr: false,
 });
 

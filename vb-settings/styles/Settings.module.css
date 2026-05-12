@@ -1,6 +1,13 @@
+.appShell {
+  min-height: 100vh;
+  background: #1f2122;
+  color: #fff;
+}
+
 .main {
   padding: 5rem 2rem;
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 2rem;
 }

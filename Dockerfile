@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine AS build
+FROM golang:1.26-alpine AS build
 RUN apk --no-cache add tzdata build-base
 
 WORKDIR /go/src/app
@@ -7,7 +7,7 @@ COPY *.go go.* ./
 RUN CGO_ENABLED=0 go build -v -tags vestaboard
 
 
-FROM node:20-bullseye-slim AS pre
+FROM node:26-bookworm-slim AS pre
 RUN apt-get update && \
   apt-get upgrade -y && \
   apt-get install -y openssl ca-certificates

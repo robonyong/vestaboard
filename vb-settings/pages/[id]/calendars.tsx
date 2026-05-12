@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/dist/client/router";
 import dynamic from "next/dynamic";
 
-import { Email } from "@prisma/client";
+import type { Email } from "@prisma/client";
 
-const CalendarSettings = dynamic(import("../../components/CalendarSettings"), {
+const CalendarSettings = dynamic(() => import("../../components/CalendarSettings"), {
   ssr: false,
 });
 

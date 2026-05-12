@@ -1,27 +1,24 @@
-import { Email } from "@prisma/client";
-
+import type { Email } from "@prisma/client";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import {
-  App,
-  BackButton,
-  Body,
+  Alert,
+  Box,
   Button,
-  colors,
   Container,
-  Input,
-  ModalDialog,
-  Progress,
-  Small,
-  Spacer,
-  SubTitle,
-  SubTitle2,
-  Title,
-  Toast,
-} from "@vestaboard/installables";
-import { useCallback, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
-
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Snackbar,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useCallback, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import styles from "../styles/Calendar.module.css";
 
 interface CalendarSettingsProps {
@@ -42,11 +39,34 @@ function CalendarSettings({ boardId, emails }: CalendarSettingsProps) {
   const onCloseModal = useCallback(() => {
     setAddModalOpen(false);
     reset();
-  }, []);
+  }, [reset]);
 
   const onCloseDeleteModal = useCallback(() => {
     setDeletingEmail(null);
   }, []);
+
+  const emailConnectionMutator = useMutation({
+    mutationFn: async (email: string) => {
+      const res = await fetch(
+        `/api/settings/${boardId}/emails/${email}/connection`,
+        { method: "GET" }
+      );
+      if (!res.ok) {
+        let error = res.statusText;
+        try {
+          error = await res.text();
+        } catch (err) {
+          console.error("unable to process error message from server");
+        }
+        throw new Error(error);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/settings/{id}/emails", boardId],
+      });
+    },
+  });
 
   const emailMutator = useMutation({
     mutationFn: async (email: string) => {
@@ -73,31 +93,6 @@ function CalendarSettings({ boardId, emails }: CalendarSettingsProps) {
         queryKey: ["/settings/{id}/emails", boardId],
       });
       onCloseModal();
-    },
-  });
-
-  const emailConnectionMutator = useMutation({
-    mutationFn: async (email: string) => {
-      const res = await fetch(
-        `/api/settings/${boardId}/emails/${email}/connection`,
-        {
-          method: "GET",
-        }
-      );
-      if (!res.ok) {
-        let error = res.statusText;
-        try {
-          error = await res.text();
-        } catch (err) {
-          console.error("unable to process error message from server");
-        }
-        throw new Error(error);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["/settings/{id}/emails", boardId],
-      });
     },
   });
 
@@ -134,130 +129,154 @@ function CalendarSettings({ boardId, emails }: CalendarSettingsProps) {
   const onReconnect = (email: string) => emailConnectionMutator.mutate(email);
 
   return (
-    <App color={colors.shark}>
-      <Container>
-        <Toast
-          severity={emailMutator.isSuccess ? "success" : "error"}
-          message={
-            emailMutator.isSuccess
-              ? "Saved!"
-              : `Failed to save: ${emailMutator.error?.message}`
-          }
+    <Box className={styles.appShell}>
+      <Container maxWidth="sm">
+        <Snackbar
           open={!emailMutator.isIdle && !emailMutator.isPending}
+          autoHideDuration={4000}
           onClose={() => emailMutator.reset()}
-        />
-        <div className={styles.main}>
-          <Title>
-            <BackButton onClick={() => router.push(`/${boardId}`)} />
-            Calendars
-          </Title>
-          <Spacer size="large" />
-          <SubTitle2>
-            <Button
-              width={200}
-              buttonType="outline"
-              onClick={() => setAddModalOpen(true)}
-            >
-              Add Calendar
-            </Button>
-          </SubTitle2>
-          <ModalDialog
-            fullScreenMobile
-            visible={addModalOpen}
-            onClose={onCloseModal}
-            header={<SubTitle>Add new calendar</SubTitle>}
-            footer={
-              <>
-                <Button buttonType="outline" onClick={onCloseModal}>
-                  Cancel
-                </Button>
-                <Button onClick={onSubmit}>Save</Button>
-              </>
-            }
+        >
+          <Alert
+            severity={emailMutator.isSuccess ? "success" : "error"}
+            onClose={() => emailMutator.reset()}
+            variant="filled"
           >
-            <div>
+            {emailMutator.isSuccess
+              ? "Saved!"
+              : `Failed to save: ${emailMutator.error?.message}`}
+          </Alert>
+        </Snackbar>
+
+        <main className={styles.main}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <IconButton
+              color="inherit"
+              aria-label="Back"
+              onClick={() => router.push(`/${boardId}`)}
+            >
+              <ArrowBackIcon />
+            </IconButton>
+            <Typography variant="h4" component="h1" fontWeight={700}>
+              Calendars
+            </Typography>
+          </Stack>
+
+          <Button
+            variant="outlined"
+            onClick={() => setAddModalOpen(true)}
+            sx={{ alignSelf: "flex-start", minWidth: 200 }}
+          >
+            Add Calendar
+          </Button>
+
+          <Dialog
+            fullScreen={false}
+            open={addModalOpen}
+            onClose={onCloseModal}
+            fullWidth
+            maxWidth="xs"
+          >
+            <DialogTitle>Add new calendar</DialogTitle>
+            <DialogContent>
               <Controller
                 control={control}
+                name="email"
                 render={({ field: { value } }) => (
-                  <Input
+                  <TextField
                     label="Google Calendar Email"
                     value={value}
-                    onValueChange={(newValue) => setValue("email", newValue)}
+                    onChange={(event) => setValue("email", event.target.value)}
+                    margin="dense"
+                    fullWidth
                   />
                 )}
-                name="email"
               />
-              <Small>
+              <Typography variant="body2" color="text.secondary">
                 Remember to share your calendar with the installable&apos;s
                 service account
-              </Small>
-            </div>
-          </ModalDialog>
-          <ModalDialog
-            fullScreenMobile
-            visible={!!deletingEmail}
+              </Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button variant="outlined" onClick={onCloseModal}>
+                Cancel
+              </Button>
+              <Button variant="contained" onClick={onSubmit}>
+                Save
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          <Dialog
+            open={!!deletingEmail}
             onClose={onCloseDeleteModal}
-            header={<SubTitle>Delete calendar?</SubTitle>}
-            footer={
-              <>
-                <Button buttonType="outline" onClick={onCloseDeleteModal}>
-                  Cancel
-                </Button>
-                <Button
-                  buttonType="danger"
-                  onClick={() => emailDeleter.mutate(deletingEmail)}
-                >
-                  Delete
-                </Button>
-              </>
-            }
+            fullWidth
+            maxWidth="xs"
           >
-            <Body>
-              Are you sure you want to delete the calendar associated with{" "}
-              {deletingEmail}?
-            </Body>
-          </ModalDialog>
+            <DialogTitle>Delete calendar?</DialogTitle>
+            <DialogContent>
+              <Typography>
+                Are you sure you want to delete the calendar associated with{" "}
+                {deletingEmail}?
+              </Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button variant="outlined" onClick={onCloseDeleteModal}>
+                Cancel
+              </Button>
+              <Button
+                color="error"
+                variant="contained"
+                onClick={() => emailDeleter.mutate(deletingEmail)}
+              >
+                Delete
+              </Button>
+            </DialogActions>
+          </Dialog>
+
           {emails.length > 0 && (
-            <div className={styles.emailContainer}>
-              <SubTitle2>Added Calendars</SubTitle2>
-              {emails.map((email) => {
-                return (
-                  <div className={styles.emailRow} key={email.email}>
-                    <div className={styles.email}>
-                      {email.email}
-                      <span
-                        style={{
-                          color: email.connected ? colors.green : colors.orange,
-                        }}
-                      >
-                        &#8226;
-                      </span>
-                    </div>
-                    <div className={styles.icons}>
-                      <Button
-                        buttonType="ghost"
-                        onClick={() => onReconnect(email.email)}
-                      >
-                        {emailConnectionMutator.isPending &&
-                        emailConnectionMutator.variables === email.email
-                          ? "Connecting..."
-                          : "Retest"}
-                      </Button>
-                      <Button
-                        buttonType="ghost"
-                        onClick={() => setDeletingEmail(email.email)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
+            <section className={styles.emailContainer}>
+              <Typography variant="h6" component="h2">
+                Added Calendars
+              </Typography>
+              {emails.map((email) => (
+                <div className={styles.emailRow} key={email.email}>
+                  <div className={styles.email}>
+                    {email.email}
+                    <span
+                      className={
+                        email.connected
+                          ? styles.statusConnected
+                          : styles.statusDisconnected
+                      }
+                    >
+                      &#8226;
+                    </span>
                   </div>
-                );
-              })}
-            </div>
+                  <div className={styles.icons}>
+                    <Button
+                      variant="text"
+                      onClick={() => onReconnect(email.email)}
+                    >
+                      {emailConnectionMutator.isPending &&
+                      emailConnectionMutator.variables === email.email
+                        ? "Connecting..."
+                        : "Retest"}
+                    </Button>
+                    <Button
+                      variant="text"
+                      color="error"
+                      onClick={() => setDeletingEmail(email.email)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </section>
           )}
-        </div>
+        </main>
       </Container>
-    </App>
+    </Box>
   );
 }
 
