@@ -9,21 +9,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 26
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
-          version: 8
+          version: 11
 
       - name: Install dependencies
         working-directory: ./vb-settings
-        run: pnpm i
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
         working-directory: ./vb-settings
@@ -33,4 +33,4 @@ jobs:
         working-directory: ./vb-settings
         run: |
           pnpm audit --audit-level high --json > audit_results.json
-          node scripts/ci/report-vulns.js $(readlink -f audit_results.json)
+          node scripts/ci/report-vulns.mjs $(readlink -f audit_results.json)

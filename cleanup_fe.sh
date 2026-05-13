@@ -1,2 +1,2 @@
 #!/bin/bash
-rm -rf temp-fe-build
+rm -rf tmp-fe-build

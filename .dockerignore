@@ -1,8 +1,9 @@
 Dockerfile
 .dockerignore
-**/node_modules/
+node_modules/
+vb-settings/node_modules/
+.pnpm-store/
 **/npm-debug.log
 **/gcloud
 **/.next
 **/.*env
-

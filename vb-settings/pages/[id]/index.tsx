@@ -4,9 +4,11 @@ import dynamic from "next/dynamic";
 
 import type { Settings } from "../../components/SubscriptionSetting";
 
-const VBSettings = dynamic(import("../../components/SubscriptionSetting"), {
+const VBSettings = dynamic(() => import("../../components/SubscriptionSetting"), {
   ssr: false,
 });
+
+const parseDays = (days: string) => days.split(",").filter(Boolean);
 
 const Index: React.FC = () => {
   const router = useRouter();
@@ -21,8 +23,8 @@ const Index: React.FC = () => {
       const settings = await resp.json();
       const deserializedSettings: Settings = {
         ...settings,
-        transitDays: settings.transitDays.split(","),
-        calendarDays: settings.calendarDays.split(","),
+        transitDays: parseDays(settings.transitDays),
+        calendarDays: parseDays(settings.calendarDays),
       };
       return deserializedSettings;
     },

@@ -1,6 +1,6 @@
-import { Email, Prisma } from "@prisma/client";
 import { NextApiRequest, NextApiResponse } from "next";
 import { getDbClient } from "../../../../../lib/db";
+import type { Email } from "@prisma/client";
 
 export default async function emailsHandler(
   req: NextApiRequest,

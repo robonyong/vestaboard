@@ -1,4 +1,4 @@
 module.exports = {
   output: "standalone",
-  transpilePackages: ["@vestaboard/installables"],
+  devIndicators: false,
 };

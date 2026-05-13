@@ -5,53 +5,58 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  build-image:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            suffix: amd64
+          - platform: linux/arm64
+            suffix: arm64
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 8
-
-      - name: Build FE
-        run: ./build_fe.sh
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@57396166ad8aefe6098280995947635806a0e6ea
-        with:
-          images: bucatini/vbcontroller
-          tags: |
-            type=raw,value=latest
-
       - name: Build and push Docker image
-        uses: docker/build-push-action@c56af957549030174b10d6867f20e78cfd7debc5
+        uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: amd64,arm64
+          platforms: ${{ matrix.platform }}
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: bucatini/vbcontroller:latest-${{ matrix.suffix }}
+          cache-from: type=gha,scope=vbcontroller-${{ matrix.suffix }}
+          cache-to: type=gha,mode=max,scope=vbcontroller-${{ matrix.suffix }}
 
-      - name: Cleanup FE
-        run: ./cleanup_fe.sh
+  publish-manifest:
+    needs: build-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Publish multi-arch latest manifest
+        run: |
+          docker buildx imagetools create \
+            --tag bucatini/vbcontroller:latest \
+            bucatini/vbcontroller:latest-amd64 \
+            bucatini/vbcontroller:latest-arm64

@@ -1,6 +1,4 @@
-import { authenticate } from "@google-cloud/local-auth";
-import fs from "fs/promises";
-import { Auth, google } from "googleapis";
+import { google } from "googleapis";
 import path from "path";
 
 const CREDENTIALS_PATH = path.join(

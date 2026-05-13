@@ -6,31 +6,33 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "prisma:gen": "prisma generate",
     "prisma:pull": "prisma db pull",
     "prisma:all": "prisma db pull && prisma generate"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@google-cloud/local-auth": "^3.0.1",
-    "@mui/icons-material": "^5.15.11",
-    "@mui/material": "^5.15.11",
-    "@tanstack/react-query": "^5.51.1",
-    "@vestaboard/installables": "^4.1.12",
-    "googleapis": "^144.0.0",
-    "next": "^14.2.5",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-hook-form": "^7.52.1"
+    "@mui/icons-material": "^9.0.1",
+    "@mui/material": "^9.0.1",
+    "@prisma/adapter-libsql": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "@tanstack/react-query": "^5.100.9",
+    "googleapis": "^171.4.0",
+    "next": "^16.2.6",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-hook-form": "^7.75.0"
   },
   "devDependencies": {
-    "@prisma/client": "^5.11.0",
-    "@types/node": "^20.12.11",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "eslint": "^8.57.0",
-    "eslint-config-next": "^14.2.5",
-    "prisma": "^5.11.0",
-    "typescript": "^5.4.5"
+    "@types/node": "^25.6.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.6",
+    "prisma": "^7.8.0",
+    "typescript": "^6.0.3"
   }
 }

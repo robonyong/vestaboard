@@ -1,21 +1,19 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  App,
+  Box,
   Button,
-  CheckBox,
+  Checkbox,
+  CircularProgress,
   Container,
   Divider,
-  Input,
-  Medium,
-  Progress,
-  Spacer,
-  SubTitle,
-  Title,
-  Toast,
-  colors,
-} from "@vestaboard/installables";
+  FormControlLabel,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useCallback } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
+import StatusSnackbar from "./StatusSnackbar";
 import styles from "../styles/Settings.module.css";
 
 export interface Settings {
@@ -33,15 +31,31 @@ interface Props {
   settings: Settings;
 }
 
+const dayOptions = [
+  ["1", "Monday"],
+  ["2", "Tuesday"],
+  ["3", "Wednesday"],
+  ["4", "Thursday"],
+  ["5", "Friday"],
+] as const;
+
+const calendarDayOptions = [
+  ...dayOptions,
+  ["6", "Saturday"],
+  ["0", "Sunday"],
+] as const;
+
+const serializeDays = (days: string[]) => days.filter(Boolean).join(",");
+
 function SubscriptionSetting({ settings }: Props) {
-  const { control, handleSubmit, setValue, watch } = useForm({
+  const { control, handleSubmit, setValue } = useForm({
     defaultValues: settings,
   });
 
-  const [transitEnabled, calendarEnabled] = watch([
-    "transitEnabled",
-    "calendarEnabled",
-  ]);
+  const [transitEnabled, calendarEnabled] = useWatch({
+    control,
+    name: ["transitEnabled", "calendarEnabled"],
+  });
 
   const onDayChange = useCallback(
     (
@@ -51,14 +65,13 @@ function SubscriptionSetting({ settings }: Props) {
       fieldName: "transitDays" | "calendarDays"
     ) => {
       if (selected) {
-        if (currValue.includes(day)) {
-          return;
-        }
-        setValue(fieldName, [...currValue, day]);
-      } else {
         if (!currValue.includes(day)) {
-          return;
+          setValue(fieldName, [...currValue, day]);
         }
+        return;
+      }
+
+      if (currValue.includes(day)) {
         setValue(
           fieldName,
           currValue.filter((d) => d !== day)
@@ -74,8 +87,8 @@ function SubscriptionSetting({ settings }: Props) {
       const { id, ...restData } = data;
       const serializedData = {
         ...restData,
-        transitDays: data.transitDays.join(","),
-        calendarDays: data.calendarDays.join(","),
+        transitDays: serializeDays(data.transitDays),
+        calendarDays: serializeDays(data.calendarDays),
       };
       const res = await fetch(`/api/settings/${id}`, {
         method: "PUT",
@@ -88,7 +101,7 @@ function SubscriptionSetting({ settings }: Props) {
         let error = res.statusText;
         try {
           error = await res.text();
-        } catch (err) {
+        } catch {
           console.error("unable to process error message from server");
         }
         throw new Error(error);
@@ -104,271 +117,170 @@ function SubscriptionSetting({ settings }: Props) {
   });
 
   return (
-    <App color={colors.shark}>
-      <Container>
-        <Toast
-          severity={settingsMutator.isSuccess ? "success" : "error"}
-          message={
-            settingsMutator.isSuccess
-              ? "Saved!"
-              : `Failed to save: ${settingsMutator.error?.message}`
-          }
-          open={!settingsMutator.isIdle && !settingsMutator.isPending}
+    <Box className={styles.appShell}>
+      <Container maxWidth="sm">
+        <StatusSnackbar
+          open={settingsMutator.isSuccess || settingsMutator.isError}
           onClose={() => settingsMutator.reset()}
+          successMessage="Saved!"
+          errorMessage={
+            settingsMutator.isError
+              ? `Failed to save: ${settingsMutator.error.message}`
+              : undefined
+          }
         />
-        <div className={styles.main}>
-          <Title>Robin&apos;s Vestaboard Settings </Title>
-          <Spacer size="large" />
-          <SubTitle>Transit Schedules </SubTitle>
-          <Controller
-            control={control}
-            render={({ field: { value } }) => (
-              <CheckBox
-                label="Enabled"
-                checked={value}
-                onValueChange={(newValue) =>
-                  setValue("transitEnabled", newValue)
-                }
-              />
-            )}
-            name="transitEnabled"
-          />
-          <Spacer />
-          <Controller
-            control={control}
-            render={({ field: { value } }) => (
-              <Input
-                disabled={!transitEnabled}
-                type="time"
-                label="Weekday Start Querying"
-                value={value}
-                onValueChange={(newValue) => setValue("transitStart", newValue)}
-              />
-            )}
-            name="transitStart"
-          />
-          <Spacer size="small" />
-          <Controller
-            control={control}
-            render={({ field: { value } }) => (
-              <Input
-                disabled={!transitEnabled}
-                type="time"
-                label="Weekday Stop Querying"
-                value={value}
-                onValueChange={(newValue) => setValue("transitEnd", newValue)}
-              />
-            )}
-            name="transitEnd"
-          />
-          <Spacer size="small" />
-          <Medium>Transit Days</Medium>
-          <Controller
-            control={control}
-            name="transitDays"
-            render={({ field: { value } }) => (
-              <CheckBox
-                disabled={!transitEnabled}
-                label="Monday"
-                checked={value.includes("1")}
-                onValueChange={(selected) =>
-                  onDayChange("1", selected, value, "transitDays")
-                }
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="transitDays"
-            render={({ field: { value } }) => (
-              <CheckBox
-                disabled={!transitEnabled}
-                label="Tuesday"
-                checked={value.includes("2")}
-                onValueChange={(selected) =>
-                  onDayChange("2", selected, value, "transitDays")
-                }
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="transitDays"
-            render={({ field: { value } }) => (
-              <CheckBox
-                disabled={!transitEnabled}
-                label="Wednesday"
-                checked={value.includes("3")}
-                onValueChange={(selected) =>
-                  onDayChange("3", selected, value, "transitDays")
-                }
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="transitDays"
-            render={({ field: { value } }) => (
-              <CheckBox
-                disabled={!transitEnabled}
-                label="Thursday"
-                checked={value.includes("4")}
-                onValueChange={(selected) =>
-                  onDayChange("4", selected, value, "transitDays")
-                }
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="transitDays"
-            render={({ field: { value } }) => (
-              <CheckBox
-                disabled={!transitEnabled}
-                label="Friday"
-                checked={value.includes("5")}
-                onValueChange={(selected) =>
-                  onDayChange("5", selected, value, "transitDays")
-                }
-              />
-            )}
-          />
+        <main className={styles.main}>
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            Robin&apos;s Vestaboard Settings
+          </Typography>
+
+          <Stack spacing={2.5}>
+            <Typography variant="h5">
+              Transit Schedules
+            </Typography>
+            <Controller
+              control={control}
+              name="transitEnabled"
+              render={({ field: { value } }) => (
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={value}
+                      onChange={(_, checked) =>
+                        setValue("transitEnabled", checked)
+                      }
+                    />
+                  }
+                  label="Enabled"
+                />
+              )}
+            />
+            <Controller
+              control={control}
+              name="transitStart"
+              render={({ field: { value } }) => (
+                <TextField
+                  disabled={!transitEnabled}
+                  type="time"
+                  label="Weekday Start Querying"
+                  value={value}
+                  onChange={(event) =>
+                    setValue("transitStart", event.target.value)
+                  }
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  fullWidth
+                />
+              )}
+            />
+            <Controller
+              control={control}
+              name="transitEnd"
+              render={({ field: { value } }) => (
+                <TextField
+                  disabled={!transitEnabled}
+                  type="time"
+                  label="Weekday Stop Querying"
+                  value={value}
+                  onChange={(event) => setValue("transitEnd", event.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  fullWidth
+                />
+              )}
+            />
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              Transit Days
+            </Typography>
+            <Stack>
+              {dayOptions.map(([day, label]) => (
+                <Controller
+                  key={day}
+                  control={control}
+                  name="transitDays"
+                  render={({ field: { value } }) => (
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          disabled={!transitEnabled}
+                          checked={value.includes(day)}
+                          onChange={(_, selected) =>
+                            onDayChange(day, selected, value, "transitDays")
+                          }
+                        />
+                      }
+                      label={label}
+                    />
+                  )}
+                />
+              ))}
+            </Stack>
+          </Stack>
+
           <Divider />
-          <Spacer size="medium" />
-          <SubTitle>Calendar Events</SubTitle>
-          <Spacer size="small" />
-          <Controller
-            control={control}
-            render={({ field: { value } }) => (
-              <CheckBox
-                label="Enabled"
-                checked={value}
-                onValueChange={(newValue) =>
-                  setValue("calendarEnabled", newValue)
-                }
-              />
-            )}
-            name="calendarEnabled"
-          />
-          <Medium>Calendar Days</Medium>
-          <Controller
-            control={control}
-            name="calendarDays"
-            render={({ field: { value } }) => (
-              <CheckBox
-                disabled={!calendarEnabled}
-                label="Monday"
-                checked={value.includes("1")}
-                onValueChange={(selected) =>
-                  onDayChange("1", selected, value, "calendarDays")
-                }
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="calendarDays"
-            render={({ field: { value } }) => (
-              <CheckBox
-                disabled={!calendarEnabled}
-                label="Tuesday"
-                checked={value.includes("2")}
-                onValueChange={(selected) =>
-                  onDayChange("2", selected, value, "calendarDays")
-                }
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="calendarDays"
-            render={({ field: { value } }) => (
-              <CheckBox
-                disabled={!calendarEnabled}
-                label="Wednesday"
-                checked={value.includes("3")}
-                onValueChange={(selected) =>
-                  onDayChange("3", selected, value, "calendarDays")
-                }
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="calendarDays"
-            render={({ field: { value } }) => (
-              <CheckBox
-                disabled={!calendarEnabled}
-                label="Thursday"
-                checked={value.includes("4")}
-                onValueChange={(selected) =>
-                  onDayChange("4", selected, value, "calendarDays")
-                }
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="calendarDays"
-            render={({ field: { value } }) => (
-              <CheckBox
-                disabled={!calendarEnabled}
-                label="Friday"
-                checked={value.includes("5")}
-                onValueChange={(selected) =>
-                  onDayChange("5", selected, value, "calendarDays")
-                }
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="calendarDays"
-            render={({ field: { value } }) => (
-              <CheckBox
-                disabled={!calendarEnabled}
-                label="Saturday"
-                checked={value.includes("6")}
-                onValueChange={(selected) =>
-                  onDayChange("6", selected, value, "calendarDays")
-                }
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="calendarDays"
-            render={({ field: { value } }) => (
-              <CheckBox
-                disabled={!calendarEnabled}
-                label="Sunday"
-                checked={value.includes("0")}
-                onValueChange={(selected) =>
-                  onDayChange("0", selected, value, "calendarDays")
-                }
-              />
-            )}
-          />
-          {/* <Spacer size="medium" /> */}
-          {/* <SubTitle>Quinoa</SubTitle> */}
-          {/* <Spacer />
-          <Input
-            type="date"
-            label="Date Of Last Incident"
-            value={lastCatIncidentDate}
-            onValueChange={setDate}
-          /> */}
-          <Spacer size="large" />
+
+          <Stack spacing={2.5}>
+            <Typography variant="h5">
+              Calendar Events
+            </Typography>
+            <Controller
+              control={control}
+              name="calendarEnabled"
+              render={({ field: { value } }) => (
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={value}
+                      onChange={(_, checked) =>
+                        setValue("calendarEnabled", checked)
+                      }
+                    />
+                  }
+                  label="Enabled"
+                />
+              )}
+            />
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              Calendar Days
+            </Typography>
+            <Stack>
+              {calendarDayOptions.map(([day, label]) => (
+                <Controller
+                  key={day}
+                  control={control}
+                  name="calendarDays"
+                  render={({ field: { value } }) => (
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          disabled={!calendarEnabled}
+                          checked={value.includes(day)}
+                          onChange={(_, selected) =>
+                            onDayChange(day, selected, value, "calendarDays")
+                          }
+                        />
+                      }
+                      label={label}
+                    />
+                  )}
+                />
+              ))}
+            </Stack>
+          </Stack>
+
           <Button
             disabled={settingsMutator.isPending}
-            buttonType="primary"
+            variant="contained"
             onClick={save}
+            size="large"
           >
-            {settingsMutator.isPending ? <Progress /> : "Save"}
+            {settingsMutator.isPending ? (
+              <CircularProgress color="inherit" size={20} />
+            ) : (
+              "Save"
+            )}
           </Button>
-        </div>
+        </main>
       </Container>
-    </App>
+    </Box>
   );
 }
 

@@ -1,6 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getDbClient } from "../../../../../../lib/db";
-import { getCalendar } from "../../../../../../lib/gcal";
 
 export default async function emailsHandler(
   req: NextApiRequest,
@@ -28,7 +27,7 @@ export default async function emailsHandler(
         });
         res.revalidate(`/api/settings/${boardName}/emails`);
         res.status(204).end();
-      } catch (error) {
+      } catch {
         res
           .status(400)
           .end(

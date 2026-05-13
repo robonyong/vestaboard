@@ -65,13 +65,11 @@ func parseDays(s string) map[int]bool {
 	return values
 }
 
-func hasAnyEvents(ctx context.Context, s *calendar.Service, calendars []string, loc *time.Location) bool {
+func hasAnyEvents(ctx context.Context, s *calendar.Service, calendars []string, now time.Time, calEnd time.Time) bool {
 	if len(calendars) == 0 {
 		return false
 	}
 
-	now := time.Now().In(loc)
-	calEnd := time.Date(now.Year(), now.Month(), now.Day(), 17, 59, 59, 999999999, loc)
 	for _, cId := range calendars {
 		events, err := s.Events.List(cId).
 			SingleEvents(true).
@@ -269,7 +267,7 @@ func (br *makeBoardRunner) runBoard(w http.ResponseWriter, req *http.Request) {
 				http.StatusInternalServerError)
 			return
 		}
-	} else if now.After(calendarStart) && now.Before(calendarEnd) && setting.CalendarEnabled && calendarToday && hasAnyEvents(br.ctx, s, calendars, loc) {
+	} else if now.After(calendarStart) && now.Before(calendarEnd) && setting.CalendarEnabled && calendarToday && hasAnyEvents(br.ctx, s, calendars, now, calendarEnd) {
 		log.Info().Msg("Running Calendar")
 		err = runCalendar(br.ctx, s, httpClient, calendars, loc)
 		if err != nil {
