@@ -1,12 +1,22 @@
 import { google } from "googleapis";
 import path from "path";
 
-const CREDENTIALS_PATH = path.join(
-  process.cwd(),
-  process.env.CALENDAR_CREDENTIALS_PATH!
-);
+const getCredentialsPath = () => {
+  const credentialsPath = process.env.CALENDAR_CREDENTIALS_PATH;
+
+  if (!credentialsPath) {
+    throw new Error(
+      "CALENDAR_CREDENTIALS_PATH is required to initialize Google Calendar"
+    );
+  }
+
+  return path.isAbsolute(credentialsPath)
+    ? credentialsPath
+    : path.join(process.cwd(), credentialsPath);
+};
+
 const auth = new google.auth.GoogleAuth({
-  keyFile: CREDENTIALS_PATH,
+  keyFile: getCredentialsPath(),
   scopes: [
     "https://www.googleapis.com/auth/calendar.readonly",
     "https://www.googleapis.com/auth/calendar",

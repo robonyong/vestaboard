@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { useCallback } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
+import CalendarEmailSettingsButton from "./CalendarEmailSettingsButton";
 import StatusSnackbar from "./StatusSnackbar";
 import styles from "../styles/Settings.module.css";
 
@@ -218,9 +219,12 @@ function SubscriptionSetting({ settings }: Props) {
           <Divider />
 
           <Stack spacing={2.5}>
-            <Typography variant="h5">
-              Calendar Events
-            </Typography>
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+              <Typography variant="h5">
+                Calendar Events
+              </Typography>
+              <CalendarEmailSettingsButton boardId={settings.id} />
+            </Stack>
             <Controller
               control={control}
               name="calendarEnabled"
