@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -13,8 +14,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const PUBLIC_BART_API_KEY = "MW9S-E7SL-26DU-VV8V"
+
 func getBartTrainLine() []string {
-	PUBLIC_BART_API_KEY := "MW9S-E7SL-26DU-VV8V"
 	NO_TRAINS_STR := "NO TRAINS"
 	BART_API_ERROR_STR := "BART API ERROR"
 	BART_QUERY_ENDPOINT, is_set := os.LookupEnv("BART_QUERY_ENDPOINT")
@@ -25,8 +27,20 @@ func getBartTrainLine() []string {
 
 	trainsLine := []string{"RED", "YELLOW", " "}
 
-	bartEndpoint := fmt.Sprintf("%s&key=%s", BART_QUERY_ENDPOINT, PUBLIC_BART_API_KEY)
-	resp, err := http.Get(bartEndpoint)
+	bartEndpoint, err := url.Parse(BART_QUERY_ENDPOINT)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to parse BART endpoint")
+		return append(trainsLine, strings.Split(BART_API_ERROR_STR, "")...)
+	}
+	bartQuery := url.Values{}
+	bartQuery.Set("cmd", "etd")
+	bartQuery.Set("orig", "MCAR")
+	bartQuery.Set("json", "y")
+	bartQuery.Set("dir", "s")
+	bartQuery.Set("key", PUBLIC_BART_API_KEY)
+	bartEndpoint.RawQuery = bartQuery.Encode()
+
+	resp, err := http.Get(bartEndpoint.String())
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to retrieve BART data")
 		return append(trainsLine, strings.Split(BART_API_ERROR_STR, "")...)
