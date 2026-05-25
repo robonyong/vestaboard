@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -40,8 +41,18 @@ func getFBusLine() []string {
 	NO_BUSES_STR := "NO BUSES"
 	AC_TRANSIT_API_ERROR_STR := "AC TRANSIT API ERROR"
 
-	acTransitEndpoint := fmt.Sprintf("%s&api_key=%s", AC_TRANSIT_QUERY_ENDPOINT, AC_TRANSIT_KEY)
-	resp, err := http.Get(acTransitEndpoint)
+	acTransitEndpoint, err := url.Parse(AC_TRANSIT_QUERY_ENDPOINT)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to parse AC Transit endpoint")
+		return strings.Split(AC_TRANSIT_API_ERROR_STR, "")
+	}
+	acTransitQuery := url.Values{}
+	acTransitQuery.Set("agency", "AC")
+	acTransitQuery.Set("stopCode", "57558")
+	acTransitQuery.Set("api_key", AC_TRANSIT_KEY)
+	acTransitEndpoint.RawQuery = acTransitQuery.Encode()
+
+	resp, err := http.Get(acTransitEndpoint.String())
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to retrieve AC Transit data")
 		return strings.Split(AC_TRANSIT_API_ERROR_STR, "")

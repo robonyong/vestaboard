@@ -97,6 +97,12 @@ func runTransit(client *http.Client, loc *time.Location) error {
 		return fmt.Errorf("AC_TRANSIT_KEY is not set")
 	}
 
+	nextBoard := getTransitBoard(loc)
+	err := postNewBoard(&NewBoardReq{ReqType: "charBoard", CharBoard: &nextBoard}, client)
+	return err
+}
+
+func getTransitBoard(loc *time.Location) [BOARD_HEIGHT][BOARD_WIDTH]uint8 {
 	now := time.Now().In(loc)
 	nextBoard := [BOARD_HEIGHT][BOARD_WIDTH]uint8{}
 
@@ -127,8 +133,7 @@ func runTransit(client *http.Client, loc *time.Location) error {
 		nextBoard[4][i] = charCode
 	}
 
-	err := postNewBoard(&NewBoardReq{ReqType: "charBoard", CharBoard: &nextBoard}, client)
-	return err
+	return nextBoard
 }
 
 func runCalendar(ctx context.Context, s *calendar.Service, client *http.Client, calendars []string, loc *time.Location) error {
@@ -177,6 +182,18 @@ func runCatIncidentTracker(client *http.Client, loc *time.Location, lastDate str
 	}
 
 	err := postNewBoard(&NewBoardReq{ReqType: "charBoard", CharBoard: &nextBoard}, client)
+	return err
+}
+
+func runWordOfTheDay(client *http.Client, loc *time.Location) error {
+	date := time.Now().In(loc).Format("2006-01-02")
+	wordOfTheDay, err := getWordOfTheDay(context.Background(), date)
+	if err != nil {
+		return err
+	}
+
+	nextBoard := formatWordOfTheDayBoard(wordOfTheDay)
+	err = postNewBoard(&NewBoardReq{ReqType: "charBoard", CharBoard: &nextBoard}, client)
 	return err
 }
 
@@ -277,11 +294,17 @@ func (br *makeBoardRunner) runBoard(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 	} else {
-		// log.Info().Str("from_date", setting.LastCatIncidentDate).Msg("Running Cat Incident Tracker")
-		// runCatIncidentTracker(httpClient, loc, setting.LastCatIncidentDate)
-		log.Info().Msg("Running Cat Incident Tracker")
-		err := runCatIncidentTracker(httpClient, loc, "")
+		// log.Info().Msg("Running Cat Incident Tracker")
+		// err := runCatIncidentTracker(httpClient, loc, "")
+		// if err != nil {
+		// 	http.Error(w, http.StatusText(http.StatusInternalServerError),
+		// 		http.StatusInternalServerError)
+		// 	return
+		// }
+		log.Info().Msg("Running Word of the Day")
+		err := runWordOfTheDay(httpClient, loc)
 		if err != nil {
+			log.Error().Err(err).Msg("Failed to run word of the day")
 			http.Error(w, http.StatusText(http.StatusInternalServerError),
 				http.StatusInternalServerError)
 			return
@@ -323,6 +346,6 @@ func main() {
 
 	http.HandleFunc("/run-board", runner.runBoard)
 
-	http.ListenAndServe(fmt.Sprintf(":%s", PORT), nil)
 	log.Info().Msg(fmt.Sprintf("Up and running on %s", PORT))
+	log.Fatal().Err(http.ListenAndServe(fmt.Sprintf(":%s", PORT), nil)).Msg("server stopped")
 }

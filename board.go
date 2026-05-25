@@ -153,13 +153,14 @@ func postNewBoard(postReq *NewBoardReq, client *http.Client) error {
 	RW_KEY, _ := os.LookupEnv("RW_KEY")
 
 	var serializedBody []byte
-	if postReq.ReqType == "text" {
+	switch postReq.ReqType {
+	case "text":
 		return errors.New("text input not supported atm")
 		// reqBody := &VBTextReq{
 		// 	Text: postReq.Text,
 		// }
 		// serializedBody, _ = json.Marshal(reqBody)
-	} else if postReq.ReqType == "charBoard" {
+	case "charBoard":
 		reqBody := postReq.CharBoard
 		serializedBody, _ = json.Marshal(reqBody)
 	}

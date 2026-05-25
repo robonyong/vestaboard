@@ -16,7 +16,7 @@ type EventWithColor struct {
 }
 
 func getCalendarLines(ctx context.Context, s *calendar.Service, calendars []string, dayStart time.Time, dayEnd time.Time) [][]string {
-	COLORS := [2]string{"RED", "BLUE"}
+	COLORS := [4]string{"RED", "BLUE", "ORANGE", "GREEN"}
 	log.Info().
 		Str("start", dayStart.Format(time.RFC3339)).
 		Str("end", dayEnd.Format(time.RFC3339)).
