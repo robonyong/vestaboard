@@ -25,6 +25,7 @@ model Email {
   boardId   String     @map("board_id")
   email     String
   connected Boolean
+  color     String     @default("WHITE")
   board     LocalBoard @relation(fields: [boardId], references: [name], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([boardId, email], map: "sqlite_autoindex_emails_1")

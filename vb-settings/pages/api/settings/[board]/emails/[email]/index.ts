@@ -1,16 +1,31 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getDbClient } from "../../../../../../lib/db";
+import { isVestaboardColor } from "../../../../../../lib/vestaboard";
 
 export default async function emailsHandler(
   req: NextApiRequest,
   res: NextApiResponse<string>
 ) {
-  const { query, method } = req;
+  const { query, method, body } = req;
 
   const boardName = Array.isArray(query.board) ? query.board[0] : query.board;
   const email = Array.isArray(query.email) ? query.email[0] : query.email;
 
   switch (method) {
+    case "PATCH": {
+      if (!isVestaboardColor(body.color)) {
+        res.status(400).end("Invalid Vestaboard color");
+        return;
+      }
+
+      const prismaClient = getDbClient();
+      await prismaClient.email.updateMany({
+        where: { boardId: boardName, email },
+        data: { color: body.color },
+      });
+      res.status(204).end();
+      break;
+    }
     case "DELETE":
       const prismaClient = getDbClient();
       const dbEmail = await prismaClient.email.findFirstOrThrow({
@@ -36,7 +51,7 @@ export default async function emailsHandler(
       }
       break;
     default:
-      res.setHeader("Allow", ["DELETE"]);
+      res.setHeader("Allow", ["PATCH", "DELETE"]);
       res.status(405).end(`Method ${method} Not Allowed`);
   }
 }

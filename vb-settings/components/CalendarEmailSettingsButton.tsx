@@ -16,6 +16,8 @@ import {
   Divider,
   Drawer,
   IconButton,
+  MenuItem,
+  Select,
   Stack,
   TextField,
   Tooltip,
@@ -26,6 +28,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { VESTABOARD_COLORS, type VestaboardColor } from "../lib/vestaboard";
 
 interface CalendarEmailSettingsButtonProps {
   boardId: string;
@@ -37,6 +40,7 @@ type Feedback = {
 };
 
 type FeedbackState = Feedback | null;
+type CalendarEmail = Email & { color: VestaboardColor };
 
 const calendarPanelSx = {
   backgroundColor: "#2d3032",
@@ -59,6 +63,57 @@ const statusChipSx = {
   fontWeight: 700,
 };
 
+const colorSwatches: Record<VestaboardColor, string> = {
+  RED: "#d32f2f",
+  ORANGE: "#f57c00",
+  YELLOW: "#fbc02d",
+  GREEN: "#2e7d32",
+  BLUE: "#1976d2",
+  PURPLE: "#7b1fa2",
+  WHITE: "#f5f5f5",
+};
+
+const actionControlSx = {
+  minHeight: 30,
+  fontSize: "0.8125rem",
+  fontWeight: 700,
+  borderColor: "rgba(255, 255, 255, 0.42)",
+  color: "#f5f5f5",
+  textTransform: "none",
+  "&:hover": {
+    borderColor: "rgba(255, 255, 255, 0.7)",
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+  },
+};
+
+const colorSelectSx = {
+  ...actionControlSx,
+  minWidth: 116,
+  "& .MuiOutlinedInput-notchedOutline": {
+    borderColor: "rgba(255, 255, 255, 0.42)",
+  },
+  "&:hover .MuiOutlinedInput-notchedOutline": {
+    borderColor: "rgba(255, 255, 255, 0.7)",
+  },
+  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+    borderColor: "rgba(255, 255, 255, 0.7)",
+  },
+  "& .MuiSelect-select": {
+    alignItems: "center",
+    display: "flex",
+    fontSize: "0.8125rem",
+    fontWeight: 700,
+    minHeight: "unset",
+    py: 0.5,
+  },
+  "& .MuiSelect-icon": {
+    color: "#f5f5f5",
+  },
+};
+
+const titleCase = (value: string) =>
+  value.charAt(0) + value.slice(1).toLowerCase();
+
 const getErrorMessage = async (res: Response) => {
   try {
     return await res.text();
@@ -78,8 +133,11 @@ function CalendarEmailSettingsButton({
   const [addFeedback, setAddFeedback] = useState<FeedbackState>(null);
   const [rowFeedback, setRowFeedback] = useState<Record<string, Feedback>>({});
 
-  const { control, handleSubmit, reset, setValue } = useForm({
-    defaultValues: { email: "" },
+  const { control, handleSubmit, reset, setValue } = useForm<{
+    email: string;
+    color: VestaboardColor;
+  }>({
+    defaultValues: { email: "", color: "WHITE" },
   });
 
   const emailsQuery = useQuery({
@@ -90,7 +148,7 @@ function CalendarEmailSettingsButton({
         return [];
       }
       const emails = await resp.json();
-      return emails as Email[];
+      return emails as CalendarEmail[];
     },
     enabled: open && !!boardId,
   });
@@ -141,14 +199,20 @@ function CalendarEmailSettingsButton({
   });
 
   const addEmail = useMutation({
-    mutationFn: async (email: string) => {
+    mutationFn: async ({
+      email,
+      color,
+    }: {
+      email: string;
+      color: VestaboardColor;
+    }) => {
       const normalizedEmail = email.trim();
       const res = await fetch(`/api/settings/${boardId}/emails`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email: normalizedEmail }),
+        body: JSON.stringify({ email: normalizedEmail, color }),
       });
       if (!res.ok) {
         throw new Error(await getErrorMessage(res));
@@ -163,6 +227,35 @@ function CalendarEmailSettingsButton({
       setAddFeedback({
         severity: "error",
         message: error instanceof Error ? error.message : "Could not add email.",
+      });
+    },
+    onSettled: invalidateEmails,
+  });
+
+  const updateColor = useMutation({
+    mutationFn: async ({
+      email,
+      color,
+    }: {
+      email: string;
+      color: VestaboardColor;
+    }) => {
+      const res = await fetch(
+        `/api/settings/${boardId}/emails/${encodeURIComponent(email)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ color }),
+        }
+      );
+      if (!res.ok) {
+        throw new Error(await getErrorMessage(res));
+      }
+    },
+    onError: (error, { email }) => {
+      setEmailFeedback(email, {
+        severity: "error",
+        message: error instanceof Error ? error.message : "Could not update color.",
       });
     },
     onSettled: invalidateEmails,
@@ -199,12 +292,12 @@ function CalendarEmailSettingsButton({
     reset();
   };
 
-  const submitEmail = handleSubmit(({ email }) => {
+  const submitEmail = handleSubmit(({ email, color }) => {
     if (!email.trim()) {
       return;
     }
     setAddFeedback(null);
-    addEmail.mutate(email);
+    addEmail.mutate({ email, color });
   });
 
   const content = (
@@ -273,6 +366,36 @@ function CalendarEmailSettingsButton({
                 disabled={addEmail.isPending}
                 fullWidth
               />
+            )}
+          />
+          <Controller
+            control={control}
+            name="color"
+            render={({ field: { value } }) => (
+              <Select<VestaboardColor>
+                value={value}
+                onChange={(event) => setValue("color", event.target.value)}
+                disabled={addEmail.isPending}
+                sx={{ minWidth: 132 }}
+              >
+                {VESTABOARD_COLORS.map((color) => (
+                  <MenuItem key={color} value={color}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                      <Box
+                        component="span"
+                        sx={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: "50%",
+                          bgcolor: colorSwatches[color],
+                          border: "1px solid rgba(0,0,0,0.24)",
+                        }}
+                      />
+                      <span>{color}</span>
+                    </Stack>
+                  </MenuItem>
+                ))}
+              </Select>
             )}
           />
           <Button
@@ -347,6 +470,44 @@ function CalendarEmailSettingsButton({
                     />
                   </Stack>
                   <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+                    <Select<VestaboardColor>
+                      size="small"
+                      value={email.color}
+                      disabled={
+                        updateColor.isPending &&
+                        updateColor.variables?.email === email.email
+                      }
+                      onChange={(event) => {
+                        clearEmailFeedback(email.email);
+                        updateColor.mutate({
+                          email: email.email,
+                          color: event.target.value,
+                        });
+                      }}
+                      sx={colorSelectSx}
+                    >
+                      {VESTABOARD_COLORS.map((color) => (
+                        <MenuItem key={color} value={color}>
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            sx={{ alignItems: "center" }}
+                          >
+                            <Box
+                              component="span"
+                              sx={{
+                                width: 12,
+                                height: 12,
+                                borderRadius: "50%",
+                                bgcolor: colorSwatches[color],
+                                border: "1px solid rgba(0,0,0,0.24)",
+                              }}
+                            />
+                            <span>{titleCase(color)}</span>
+                          </Stack>
+                        </MenuItem>
+                      ))}
+                    </Select>
                     <Button
                       variant="outlined"
                       size="small"
@@ -358,12 +519,13 @@ function CalendarEmailSettingsButton({
                         )
                       }
                       disabled={testing || deleting}
+                      sx={actionControlSx}
                       onClick={() => {
                         clearEmailFeedback(email.email);
                         testConnection.mutate(email.email);
                       }}
                     >
-                      {testing ? "Testing" : "Test connection"}
+                      {testing ? "Testing" : "Test Connection"}
                     </Button>
                     <Button
                       variant="outlined"
@@ -382,6 +544,7 @@ function CalendarEmailSettingsButton({
                         deleteEmail.mutate(email.email);
                       }}
                       sx={{
+                        ...actionControlSx,
                         borderColor: "rgba(255, 138, 128, 0.42)",
                         color: "#ffb4ad",
                         "&:hover": {
@@ -390,7 +553,7 @@ function CalendarEmailSettingsButton({
                         },
                       }}
                     >
-                      {deleting ? "Deleting" : "Delete email"}
+                      {deleting ? "Deleting" : "Delete Email"}
                     </Button>
                     {emailFeedback?.severity === "success" && (
                       <Tooltip title={emailFeedback.message}>

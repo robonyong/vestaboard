@@ -9,6 +9,8 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  MenuItem,
+  Select,
   Stack,
   TextField,
   Typography,
@@ -19,11 +21,14 @@ import { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import StatusSnackbar from "./StatusSnackbar";
 import styles from "../styles/Calendar.module.css";
+import { VESTABOARD_COLORS, type VestaboardColor } from "../lib/vestaboard";
 
 interface CalendarSettingsProps {
   boardId: string;
-  emails: Email[];
+  emails: CalendarEmail[];
 }
+
+type CalendarEmail = Email & { color: VestaboardColor };
 
 function CalendarSettings({ boardId, emails }: CalendarSettingsProps) {
   const router = useRouter();
@@ -31,8 +36,11 @@ function CalendarSettings({ boardId, emails }: CalendarSettingsProps) {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [deletingEmail, setDeletingEmail] = useState<string | null>(null);
 
-  const { control, handleSubmit, reset, setValue } = useForm({
-    defaultValues: { email: "" },
+  const { control, handleSubmit, reset, setValue } = useForm<{
+    email: string;
+    color: VestaboardColor;
+  }>({
+    defaultValues: { email: "", color: "WHITE" },
   });
 
   const onCloseModal = useCallback(() => {
@@ -68,13 +76,19 @@ function CalendarSettings({ boardId, emails }: CalendarSettingsProps) {
   });
 
   const emailMutator = useMutation({
-    mutationFn: async (email: string) => {
+    mutationFn: async ({
+      email,
+      color,
+    }: {
+      email: string;
+      color: VestaboardColor;
+    }) => {
       const res = await fetch(`/api/settings/${boardId}/emails`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, boardId, connected: false }),
+        body: JSON.stringify({ email, boardId, connected: false, color }),
       });
       if (!res.ok) {
         let error = res.statusText;
@@ -92,6 +106,39 @@ function CalendarSettings({ boardId, emails }: CalendarSettingsProps) {
         queryKey: ["/settings/{id}/emails", boardId],
       });
       onCloseModal();
+    },
+  });
+
+  const colorMutator = useMutation({
+    mutationFn: async ({
+      email,
+      color,
+    }: {
+      email: string;
+      color: VestaboardColor;
+    }) => {
+      const res = await fetch(
+        `/api/settings/${boardId}/emails/${encodeURIComponent(email)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ color }),
+        }
+      );
+      if (!res.ok) {
+        let error = res.statusText;
+        try {
+          error = await res.text();
+        } catch {
+          console.error("unable to process error message from server");
+        }
+        throw new Error(error);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/settings/{id}/emails", boardId],
+      });
     },
   });
 
@@ -121,8 +168,8 @@ function CalendarSettings({ boardId, emails }: CalendarSettingsProps) {
     },
   });
 
-  const onSubmit = handleSubmit(({ email }) => {
-    emailMutator.mutate(email);
+  const onSubmit = handleSubmit(({ email, color }) => {
+    emailMutator.mutate({ email, color });
   });
 
   const onReconnect = (email: string) => emailConnectionMutator.mutate(email);
@@ -183,6 +230,24 @@ function CalendarSettings({ boardId, emails }: CalendarSettingsProps) {
                     margin="dense"
                     fullWidth
                   />
+                )}
+              />
+              <Controller
+                control={control}
+                name="color"
+                render={({ field: { value } }) => (
+                  <Select<VestaboardColor>
+                    value={value}
+                    onChange={(event) => setValue("color", event.target.value)}
+                    fullWidth
+                    sx={{ mt: 1 }}
+                  >
+                    {VESTABOARD_COLORS.map((color) => (
+                      <MenuItem key={color} value={color}>
+                        {color}
+                      </MenuItem>
+                    ))}
+                  </Select>
                 )}
               />
               <Typography variant="body2" color="text.secondary">
@@ -247,6 +312,22 @@ function CalendarSettings({ boardId, emails }: CalendarSettingsProps) {
                     </span>
                   </div>
                   <div className={styles.icons}>
+                    <Select<VestaboardColor>
+                      size="small"
+                      value={email.color}
+                      onChange={(event) =>
+                        colorMutator.mutate({
+                          email: email.email,
+                          color: event.target.value,
+                        })
+                      }
+                    >
+                      {VESTABOARD_COLORS.map((color) => (
+                        <MenuItem key={color} value={color}>
+                          {color}
+                        </MenuItem>
+                      ))}
+                    </Select>
                     <Button
                       variant="text"
                       onClick={() => onReconnect(email.email)}

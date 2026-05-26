@@ -236,6 +236,7 @@ func sanitizeBoardText(text string) string {
 func formatWordOfTheDayBoard(wotd *wordOfTheDay) [BOARD_HEIGHT][BOARD_WIDTH]uint8 {
 	nextBoard := [BOARD_HEIGHT][BOARD_WIDTH]uint8{}
 	lines := wordOfTheDayLines(wotd)
+	startRow := (BOARD_HEIGHT - len(lines)) / 2
 
 	for i, line := range lines {
 		for j, char := range strings.Split(line, "") {
@@ -243,7 +244,7 @@ func formatWordOfTheDayBoard(wotd *wordOfTheDay) [BOARD_HEIGHT][BOARD_WIDTH]uint
 				break
 			}
 			charCode, _ := getVestaboardChar(char)
-			nextBoard[i][j] = charCode
+			nextBoard[startRow+i][j] = charCode
 		}
 	}
 
@@ -252,8 +253,8 @@ func formatWordOfTheDayBoard(wotd *wordOfTheDay) [BOARD_HEIGHT][BOARD_WIDTH]uint
 
 func wordOfTheDayLines(wotd *wordOfTheDay) []string {
 	lines := []string{
-		fitBoardLine(fmt.Sprintf("%s (%s)", wotd.Word, wotd.PartOfSpeech)),
-		fitBoardLine(wotd.Pronunciation),
+		centerBoardLine(fitBoardLine(fmt.Sprintf("%s (%s)", wotd.Word, wotd.PartOfSpeech))),
+		centerBoardLine(fitBoardLine(wotd.Pronunciation)),
 	}
 
 	for _, definition := range wotd.Definitions {
@@ -282,6 +283,14 @@ func fitBoardLine(line string) string {
 		line = line[:idx]
 	}
 	return strings.TrimRight(strings.TrimSpace(line), " :-;,")
+}
+
+func centerBoardLine(line string) string {
+	padding := (BOARD_WIDTH - len([]rune(line))) / 2
+	if padding <= 0 {
+		return line
+	}
+	return strings.Repeat(" ", padding) + line
 }
 
 func abbreviatedPartOfSpeech(partOfSpeech string) string {

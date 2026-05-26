@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { getDbClient } from "../../../../../lib/db";
 import { getCalendar } from "../../../../../lib/gcal";
 import type { Email } from "@prisma/client";
+import { isVestaboardColor } from "../../../../../lib/vestaboard";
 
 export default async function emailsHandler(
   req: NextApiRequest,
@@ -31,6 +32,7 @@ export default async function emailsHandler(
       const client = getDbClient();
       const email =
         typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+      const color = isVestaboardColor(body.color) ? body.color : "WHITE";
 
       if (!email) {
         res.status(400).end("Email is required");
@@ -59,6 +61,7 @@ export default async function emailsHandler(
           email,
           boardId: boardName,
           connected,
+          color,
         },
       });
 

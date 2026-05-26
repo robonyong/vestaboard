@@ -65,19 +65,19 @@ func parseDays(s string) map[int]bool {
 	return values
 }
 
-func hasAnyEvents(ctx context.Context, s *calendar.Service, calendars []string, now time.Time, calEnd time.Time) bool {
+func hasAnyEvents(ctx context.Context, s *calendar.Service, calendars []CalendarSource, now time.Time, calEnd time.Time) bool {
 	if len(calendars) == 0 {
 		return false
 	}
 
-	for _, cId := range calendars {
-		events, err := s.Events.List(cId).
+	for _, calendar := range calendars {
+		events, err := s.Events.List(calendar.Email).
 			SingleEvents(true).
 			TimeMin(now.Format(time.RFC3339)).
 			TimeMax(calEnd.Format(time.RFC3339)).
 			Context(ctx).Do()
 		if err != nil {
-			log.Error().Err(err).Str("calendar", cId).Msg("Failed to fetch calendar")
+			log.Error().Err(err).Str("calendar", calendar.Email).Msg("Failed to fetch calendar")
 			continue
 		}
 
@@ -136,7 +136,7 @@ func getTransitBoard(loc *time.Location) [BOARD_HEIGHT][BOARD_WIDTH]uint8 {
 	return nextBoard
 }
 
-func runCalendar(ctx context.Context, s *calendar.Service, client *http.Client, calendars []string, loc *time.Location) error {
+func runCalendar(ctx context.Context, s *calendar.Service, client *http.Client, calendars []CalendarSource, loc *time.Location) error {
 	if len(calendars) == 0 {
 		return nil
 	}
@@ -257,7 +257,7 @@ func (br *makeBoardRunner) runBoard(w http.ResponseWriter, req *http.Request) {
 	_, transitToday := transitEnabledDays[int(now.Weekday())]
 	_, calendarToday := calendarEnabledDays[int(now.Weekday())]
 
-	calendarRows, err := br.db.QueryContext(br.ctx, fmt.Sprintf("SELECT email FROM emails WHERE board_id = '%s' AND connected = true", VB_BOARD_NAME))
+	calendarRows, err := br.db.QueryContext(br.ctx, fmt.Sprintf("SELECT email, color FROM emails WHERE board_id = '%s' AND connected = true", VB_BOARD_NAME))
 
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get calendar rows")
@@ -267,12 +267,13 @@ func (br *makeBoardRunner) runBoard(w http.ResponseWriter, req *http.Request) {
 	}
 	defer calendarRows.Close()
 
-	calendars := make([]string, 0)
+	calendars := make([]CalendarSource, 0)
 
 	for calendarRows.Next() {
 		var email string
-		calendarRows.Scan(&email)
-		calendars = append(calendars, email)
+		var color string
+		calendarRows.Scan(&email, &color)
+		calendars = append(calendars, CalendarSource{Email: email, Color: color})
 	}
 
 	if setting.TransitEnabled && transitToday && now.After(transitStart) && now.Before(transitEnd) {
