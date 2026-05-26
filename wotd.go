@@ -23,7 +23,8 @@ const DEFAULT_WOTD_CACHE_PATH = "/tmp/vestaboard-wotd-cache.json"
 type wotdFeed struct {
 	Channel struct {
 		Items []struct {
-			Title string `xml:"title"`
+			Title       string `xml:"title"`
+			Description string `xml:"description"`
 		} `xml:"item"`
 	} `xml:"channel"`
 }
@@ -43,6 +44,11 @@ type wordOfTheDay struct {
 	PartOfSpeech  string
 	Pronunciation string
 	Definitions   []string
+}
+
+type wotdFeedItem struct {
+	Word          string
+	Pronunciation string
 }
 
 type wordOfTheDayCache struct {
@@ -65,20 +71,25 @@ func getWordOfTheDay(ctx context.Context, date string) (*wordOfTheDay, error) {
 }
 
 func fetchFreshWordOfTheDay(ctx context.Context) (*wordOfTheDay, error) {
-	word, err := fetchWordOfTheDay(ctx, http.DefaultClient)
+	feedItem, err := fetchWordOfTheDay(ctx, http.DefaultClient)
 	if err != nil {
 		return nil, err
 	}
 
-	entry, err := fetchDictionaryEntry(ctx, http.DefaultClient, word)
+	entry, err := fetchDictionaryEntry(ctx, http.DefaultClient, feedItem.Word)
 	if err != nil {
 		return nil, err
+	}
+
+	pronunciation := entry.Headword.Pronunciations[0].MW
+	if feedItem.Pronunciation != "" {
+		pronunciation = feedItem.Pronunciation
 	}
 
 	return &wordOfTheDay{
-		Word:          word,
+		Word:          feedItem.Word,
 		PartOfSpeech:  abbreviatedPartOfSpeech(entry.FunctionalLabel),
-		Pronunciation: boardPronunciation(entry.Headword.Pronunciations[0].MW),
+		Pronunciation: boardPronunciation(pronunciation),
 		Definitions:   entry.ShortDefs,
 	}, nil
 }
@@ -130,36 +141,48 @@ func writeCachedWordOfTheDay(date string, wotd *wordOfTheDay) {
 	_ = os.Rename(tmpPath, cachePath)
 }
 
-func fetchWordOfTheDay(ctx context.Context, client *http.Client) (string, error) {
+func fetchWordOfTheDay(ctx context.Context, client *http.Client) (*wotdFeedItem, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, MERRIAM_WEBSTER_WOTD_FEED_URL, nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to fetch word of the day feed: %s", resp.Status)
+		return nil, fmt.Errorf("failed to fetch word of the day feed: %s", resp.Status)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var feed wotdFeed
 	if err := xml.Unmarshal(body, &feed); err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(feed.Channel.Items) == 0 || strings.TrimSpace(feed.Channel.Items[0].Title) == "" {
-		return "", errors.New("word of the day feed did not include an item title")
+		return nil, errors.New("word of the day feed did not include an item title")
 	}
 
-	return strings.TrimSpace(feed.Channel.Items[0].Title), nil
+	item := feed.Channel.Items[0]
+	return &wotdFeedItem{
+		Word:          strings.TrimSpace(item.Title),
+		Pronunciation: feedPronunciation(item.Description),
+	}, nil
+}
+
+func feedPronunciation(description string) string {
+	match := feedPronunciationRE.FindStringSubmatch(description)
+	if len(match) < 2 {
+		return ""
+	}
+	return match[1]
 }
 
 func fetchDictionaryEntry(ctx context.Context, client *http.Client, word string) (*dictionaryEntry, error) {
@@ -169,7 +192,7 @@ func fetchDictionaryEntry(ctx context.Context, client *http.Client, word string)
 	}
 
 	endpoint, _ := url.Parse(MERRIAM_WEBSTER_DICTIONARY_URL)
-	endpoint.Path += url.PathEscape(word)
+	endpoint.Path += word
 	query := endpoint.Query()
 	query.Set("key", apiKey)
 	endpoint.RawQuery = query.Encode()
@@ -194,12 +217,16 @@ func fetchDictionaryEntry(ctx context.Context, client *http.Client, word string)
 		return nil, err
 	}
 
-	var entries []dictionaryEntry
-	if err := json.Unmarshal(body, &entries); err != nil {
+	var results []json.RawMessage
+	if err := json.Unmarshal(body, &results); err != nil {
 		return nil, err
 	}
 
-	for _, entry := range entries {
+	for _, result := range results {
+		var entry dictionaryEntry
+		if err := json.Unmarshal(result, &entry); err != nil {
+			continue
+		}
 		if len(entry.Headword.Pronunciations) > 0 && len(entry.ShortDefs) > 0 {
 			return &entry, nil
 		}
@@ -257,22 +284,80 @@ func wordOfTheDayLines(wotd *wordOfTheDay) []string {
 		centerBoardLine(fitBoardLine(wotd.Pronunciation)),
 	}
 
-	for _, definition := range wotd.Definitions {
+	for i, definition := range wotd.Definitions {
 		if len(lines) == BOARD_HEIGHT {
 			break
 		}
 
-		line := fitBoardLine(definition)
-		if line != "" {
-			lines = append(lines, line)
+		if wrapped := wrapBoardLine(shortDefinition(definition), BOARD_HEIGHT-len(lines), i == 0); len(wrapped) > 0 {
+			lines = append(lines, wrapped...)
 		}
 	}
 
 	return lines
 }
 
+func wrapBoardLine(line string, maxLines int, allowPartial bool) []string {
+	line = strings.TrimSpace(sanitizeBoardText(line))
+	if line == "" || maxLines == 0 {
+		return nil
+	}
+	if len([]rune(line)) <= BOARD_WIDTH {
+		line = strings.TrimRight(line, " :-;,")
+		if line == "" {
+			return nil
+		}
+		return []string{line}
+	}
+
+	lines := []string{}
+	for line != "" && len(lines) < maxLines {
+		indent := ""
+		width := BOARD_WIDTH
+		if len(lines) > 0 {
+			indent = " "
+			width--
+		}
+
+		next, consumed := fitWrappedBoardLine(line, width)
+		if next == "" {
+			break
+		}
+
+		lines = append(lines, indent+next)
+		line = strings.TrimSpace(line[consumed:])
+	}
+
+	if line != "" && !allowPartial {
+		return nil
+	}
+	return lines
+}
+
+func shortDefinition(definition string) string {
+	if idx := strings.Index(definition, ";"); idx >= 0 {
+		return definition[:idx]
+	}
+	return definition
+}
+
+func fitWrappedBoardLine(line string, width int) (string, int) {
+	line = strings.TrimSpace(line)
+	consumed := len(line)
+	if len([]rune(line)) > width {
+		runes := []rune(line)
+		line = string(runes[:width])
+		if idx := strings.LastIndex(line, " "); idx > 0 {
+			line = line[:idx]
+		}
+		consumed = len(line)
+	}
+
+	return strings.TrimRight(strings.TrimSpace(line), " :-;,"), consumed
+}
+
 func fitBoardLine(line string) string {
-	line = sanitizeBoardText(line)
+	line = strings.TrimSpace(sanitizeBoardText(line))
 	if len([]rune(line)) <= BOARD_WIDTH {
 		return strings.TrimRight(line, " :-;,")
 	}
@@ -341,4 +426,5 @@ var pronunciationReplacer = strings.NewReplacer(
 )
 
 var uppercaseStressRE = regexp.MustCompile(`[A-Z]+`)
+var feedPronunciationRE = regexp.MustCompile(`\\([^\\]+)\\`)
 var whitespaceRE = regexp.MustCompile(`\s+`)

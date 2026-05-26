@@ -82,7 +82,16 @@ func hasAnyEvents(ctx context.Context, s *calendar.Service, calendars []Calendar
 		}
 
 		for _, e := range events.Items {
-			if e.Status != "cancelled" && e.Start != nil && e.Summary != "" {
+			if e.EventType != "default" || e.Status == "cancelled" || e.Start == nil || e.End == nil || e.Start.DateTime == "" || e.End.DateTime == "" || e.Summary == "" {
+				continue
+			}
+
+			endDateTime, err := time.Parse(time.RFC3339, e.End.DateTime)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to parse end time")
+				continue
+			}
+			if endDateTime.After(now) {
 				return true
 			}
 		}
