@@ -15,28 +15,31 @@ type EventWithColor struct {
 	Color string
 }
 
-func getCalendarLines(ctx context.Context, s *calendar.Service, calendars []string, dayStart time.Time, dayEnd time.Time) [][]string {
-	COLORS := [4]string{"RED", "BLUE", "ORANGE", "GREEN"}
+type CalendarSource struct {
+	Email string
+	Color string
+}
+
+func getCalendarLines(ctx context.Context, s *calendar.Service, calendars []CalendarSource, dayStart time.Time, dayEnd time.Time) [][]string {
 	log.Info().
 		Str("start", dayStart.Format(time.RFC3339)).
 		Str("end", dayEnd.Format(time.RFC3339)).
 		Msg("Fetching Events")
 
 	validEvents := []*EventWithColor{}
-	for i, cId := range calendars {
-		color := COLORS[i]
-		events, err := s.Events.List(cId).
+	for _, calendar := range calendars {
+		events, err := s.Events.List(calendar.Email).
 			SingleEvents(true).
 			TimeMin(dayStart.Format(time.RFC3339)).
 			TimeMax(dayEnd.Format(time.RFC3339)).
 			Context(ctx).Do()
 		if err != nil {
-			log.Error().Err(err).Str("calendar", cId).Msg("Failed to fetch calendar")
+			log.Error().Err(err).Str("calendar", calendar.Email).Msg("Failed to fetch calendar")
 			continue
 		}
 		for _, e := range events.Items {
 			if e.EventType == "default" && e.Status != "cancelled" && e.Start != nil && e.Summary != "" {
-				validEvents = append(validEvents, &EventWithColor{e, color})
+				validEvents = append(validEvents, &EventWithColor{e, calendar.Color})
 			}
 		}
 	}

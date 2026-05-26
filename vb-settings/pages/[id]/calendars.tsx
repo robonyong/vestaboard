@@ -3,6 +3,9 @@ import { useRouter } from "next/dist/client/router";
 import dynamic from "next/dynamic";
 
 import type { Email } from "@prisma/client";
+import type { VestaboardColor } from "../../lib/vestaboard";
+
+type CalendarEmail = Email & { color: VestaboardColor };
 
 const CalendarSettings = dynamic(() => import("../../components/CalendarSettings"), {
   ssr: false,
@@ -19,7 +22,7 @@ const Calendars: React.FC = () => {
         return [];
       }
       const emails = await resp.json();
-      return emails as Email[];
+      return emails as CalendarEmail[];
     },
     enabled: !!id,
   });
