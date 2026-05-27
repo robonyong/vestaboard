@@ -188,7 +188,14 @@ func postNewBoard(postReq *NewBoardReq, client *http.Client) error {
 	}
 	var respBody map[string]interface{}
 	json.Unmarshal([]byte(body), &respBody)
-	if resp.StatusCode != 200 && resp.StatusCode != 304 {
+	if resp.StatusCode == http.StatusConflict {
+		log.Info().
+			Int("response_code", resp.StatusCode).
+			Interface("response_body", respBody).
+			Msg("Board already has this message")
+		return nil
+	}
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotModified {
 		log.Error().
 			Int("response_code", resp.StatusCode).
 			Interface("response_body", respBody).
