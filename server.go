@@ -243,7 +243,7 @@ func (br *makeBoardRunner) runBoard(w http.ResponseWriter, req *http.Request) {
 	transitStart := time.Date(now.Year(), now.Month(), now.Day(), transitStartH, transitStartM, 0, 0, loc)
 	transitEnd := time.Date(now.Year(), now.Month(), now.Day(), transitEndH, transitEndM, 0, 0, loc)
 	transitEnabledDays := parseDays(setting.TransitDays)
-	calendarStart := time.Date(now.Year(), now.Month(), now.Day(), 8, 50, 0, 0, loc)
+	calendarStart := time.Date(now.Year(), now.Month(), now.Day(), 8, 30, 0, 0, loc)
 	calendarEnd := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, loc)
 	calendarEnabledDays := parseDays(setting.CalendarDays)
 
