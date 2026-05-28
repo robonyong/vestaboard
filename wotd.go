@@ -335,10 +335,13 @@ func wrapBoardLine(line string, maxLines int, allowPartial bool) []string {
 }
 
 func shortDefinition(definition string) string {
-	if idx := strings.Index(definition, ";"); idx >= 0 {
-		return definition[:idx]
+	end := len(definition)
+	for _, marker := range []string{";", " : ", "—"} {
+		if idx := strings.Index(definition, marker); idx >= 0 && idx < end {
+			end = idx
+		}
 	}
-	return definition
+	return definition[:end]
 }
 
 func fitWrappedBoardLine(line string, width int) (string, int) {
