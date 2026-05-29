@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
@@ -16,7 +17,7 @@ import (
 	"unicode"
 )
 
-const MERRIAM_WEBSTER_WOTD_FEED_URL = "https://www.merriam-webster.com/wotd/feed/rss2"
+const WORDSMITH_WOTD_FEED_URL = "https://wordsmith.org/awad/rss1.xml"
 const MERRIAM_WEBSTER_DICTIONARY_URL = "https://www.dictionaryapi.com/api/v3/references/collegiate/json/"
 const DEFAULT_WOTD_CACHE_PATH = "/tmp/vestaboard-wotd-cache.json"
 
@@ -24,12 +25,16 @@ type wotdFeed struct {
 	Channel struct {
 		Items []struct {
 			Title       string `xml:"title"`
+			Link        string `xml:"link"`
 			Description string `xml:"description"`
 		} `xml:"item"`
 	} `xml:"channel"`
 }
 
 type dictionaryEntry struct {
+	Meta struct {
+		ID string `json:"id"`
+	} `json:"meta"`
 	Headword struct {
 		Pronunciations []struct {
 			MW string `json:"mw"`
@@ -37,6 +42,13 @@ type dictionaryEntry struct {
 	} `json:"hwi"`
 	FunctionalLabel string   `json:"fl"`
 	ShortDefs       []string `json:"shortdef"`
+	RunOns          []struct {
+		Entry          string `json:"ure"`
+		Pronunciations []struct {
+			MW string `json:"mw"`
+		} `json:"prs"`
+		FunctionalLabel string `json:"fl"`
+	} `json:"uros"`
 }
 
 type wordOfTheDay struct {
@@ -47,8 +59,15 @@ type wordOfTheDay struct {
 }
 
 type wotdFeedItem struct {
-	Word          string
+	Word        string
+	Link        string
+	Description string
+}
+
+type dictionaryMatch struct {
+	PartOfSpeech  string
 	Pronunciation string
+	Definitions   []string
 }
 
 type wordOfTheDayCache struct {
@@ -76,22 +95,17 @@ func fetchFreshWordOfTheDay(ctx context.Context) (*wordOfTheDay, error) {
 		return nil, err
 	}
 
-	entry, err := fetchDictionaryEntry(ctx, http.DefaultClient, feedItem.Word)
-	if err != nil {
-		return nil, err
+	match, err := fetchDictionaryEntry(ctx, http.DefaultClient, feedItem.Word)
+	if err == nil {
+		return &wordOfTheDay{
+			Word:          feedItem.Word,
+			PartOfSpeech:  abbreviatedPartOfSpeech(match.PartOfSpeech),
+			Pronunciation: boardPronunciation(match.Pronunciation),
+			Definitions:   match.Definitions,
+		}, nil
 	}
 
-	pronunciation := entry.Headword.Pronunciations[0].MW
-	if feedItem.Pronunciation != "" {
-		pronunciation = feedItem.Pronunciation
-	}
-
-	return &wordOfTheDay{
-		Word:          feedItem.Word,
-		PartOfSpeech:  abbreviatedPartOfSpeech(entry.FunctionalLabel),
-		Pronunciation: boardPronunciation(pronunciation),
-		Definitions:   entry.ShortDefs,
-	}, nil
+	return fetchWordsmithEntry(ctx, http.DefaultClient, feedItem)
 }
 
 func wotdCachePath() string {
@@ -142,7 +156,7 @@ func writeCachedWordOfTheDay(date string, wotd *wordOfTheDay) {
 }
 
 func fetchWordOfTheDay(ctx context.Context, client *http.Client) (*wotdFeedItem, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, MERRIAM_WEBSTER_WOTD_FEED_URL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, WORDSMITH_WOTD_FEED_URL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -172,20 +186,13 @@ func fetchWordOfTheDay(ctx context.Context, client *http.Client) (*wotdFeedItem,
 
 	item := feed.Channel.Items[0]
 	return &wotdFeedItem{
-		Word:          strings.TrimSpace(item.Title),
-		Pronunciation: feedPronunciation(item.Description),
+		Word:        strings.TrimSpace(item.Title),
+		Link:        strings.TrimSpace(item.Link),
+		Description: strings.TrimSpace(item.Description),
 	}, nil
 }
 
-func feedPronunciation(description string) string {
-	match := feedPronunciationRE.FindStringSubmatch(description)
-	if len(match) < 2 {
-		return ""
-	}
-	return match[1]
-}
-
-func fetchDictionaryEntry(ctx context.Context, client *http.Client, word string) (*dictionaryEntry, error) {
+func fetchDictionaryEntry(ctx context.Context, client *http.Client, word string) (*dictionaryMatch, error) {
 	apiKey, ok := os.LookupEnv("MERRIAM_WEBSTER_API_KEY")
 	if !ok || apiKey == "" {
 		return nil, errors.New("MERRIAM_WEBSTER_API_KEY is not set")
@@ -227,12 +234,97 @@ func fetchDictionaryEntry(ctx context.Context, client *http.Client, word string)
 		if err := json.Unmarshal(result, &entry); err != nil {
 			continue
 		}
-		if len(entry.Headword.Pronunciations) > 0 && len(entry.ShortDefs) > 0 {
-			return &entry, nil
+		if normalizedWord(entry.Meta.ID) == normalizedWord(word) && len(entry.Headword.Pronunciations) > 0 && len(entry.ShortDefs) > 0 {
+			return &dictionaryMatch{
+				PartOfSpeech:  entry.FunctionalLabel,
+				Pronunciation: entry.Headword.Pronunciations[0].MW,
+				Definitions:   entry.ShortDefs,
+			}, nil
+		}
+
+		for _, runOn := range entry.RunOns {
+			if normalizedWord(runOn.Entry) == normalizedWord(word) && len(runOn.Pronunciations) > 0 && runOn.FunctionalLabel != "" && len(entry.ShortDefs) > 0 {
+				return &dictionaryMatch{
+					PartOfSpeech:  runOn.FunctionalLabel,
+					Pronunciation: runOn.Pronunciations[0].MW,
+					Definitions:   entry.ShortDefs,
+				}, nil
+			}
 		}
 	}
 
-	return nil, fmt.Errorf("dictionary entry for %q did not include pronunciation and short definitions", word)
+	return nil, fmt.Errorf("dictionary entry for %q did not include a matching headword", word)
+}
+
+func fetchWordsmithEntry(ctx context.Context, client *http.Client, feedItem *wotdFeedItem) (*wordOfTheDay, error) {
+	if feedItem.Link == "" {
+		return wordOfTheDayFromWordsmithDescription(feedItem)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feedItem.Link, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch Wordsmith entry: %s", resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	page := string(body)
+	pronunciation := htmlText(wordsmithPronunciationRE.FindStringSubmatch(page))
+	partOfSpeech := htmlText(wordsmithPartOfSpeechRE.FindStringSubmatch(page))
+	definition := htmlText(wordsmithDefinitionRE.FindStringSubmatch(page))
+	if partOfSpeech == "" || definition == "" {
+		return wordOfTheDayFromWordsmithDescription(feedItem)
+	}
+
+	return &wordOfTheDay{
+		Word:          feedItem.Word,
+		PartOfSpeech:  abbreviatedPartOfSpeech(partOfSpeech),
+		Pronunciation: boardPronunciation(pronunciation),
+		Definitions:   []string{definition},
+	}, nil
+}
+
+func wordOfTheDayFromWordsmithDescription(feedItem *wotdFeedItem) (*wordOfTheDay, error) {
+	description := strings.TrimSpace(feedItem.Description)
+	idx := strings.Index(description, ":")
+	if idx < 0 {
+		return nil, fmt.Errorf("Wordsmith entry for %q did not include metadata", feedItem.Word)
+	}
+
+	return &wordOfTheDay{
+		Word:          feedItem.Word,
+		PartOfSpeech:  abbreviatedPartOfSpeech(description[:idx]),
+		Pronunciation: "",
+		Definitions:   []string{strings.TrimSpace(description[idx+1:])},
+	}, nil
+}
+
+func htmlText(match []string) string {
+	if len(match) < 2 {
+		return ""
+	}
+	text := htmlTagRE.ReplaceAllString(match[1], " ")
+	return whitespaceRE.ReplaceAllString(strings.TrimSpace(html.UnescapeString(text)), " ")
+}
+
+func normalizedWord(word string) string {
+	word = htmlTagRE.ReplaceAllString(word, "")
+	word = strings.ReplaceAll(word, "*", "")
+	word = strings.TrimSuffix(word, ":g")
+	return strings.ToLower(strings.TrimSpace(word))
 }
 
 func boardPronunciation(pronunciation string) string {
@@ -281,7 +373,9 @@ func formatWordOfTheDayBoard(wotd *wordOfTheDay) [BOARD_HEIGHT][BOARD_WIDTH]uint
 func wordOfTheDayLines(wotd *wordOfTheDay) []string {
 	lines := []string{
 		centerBoardLine(fitBoardLine(fmt.Sprintf("%s (%s)", wotd.Word, wotd.PartOfSpeech))),
-		centerBoardLine(fitBoardLine(wotd.Pronunciation)),
+	}
+	if wotd.Pronunciation != "" {
+		lines = append(lines, centerBoardLine(fitBoardLine(wotd.Pronunciation)))
 	}
 
 	for i, definition := range wotd.Definitions {
@@ -429,5 +523,8 @@ var pronunciationReplacer = strings.NewReplacer(
 )
 
 var uppercaseStressRE = regexp.MustCompile(`[A-Z]+`)
-var feedPronunciationRE = regexp.MustCompile(`\\([^\\]+)\\`)
+var htmlTagRE = regexp.MustCompile(`<[^>]+>`)
 var whitespaceRE = regexp.MustCompile(`\s+`)
+var wordsmithDefinitionRE = regexp.MustCompile(`(?is)<div[^>]*>\s*<i>[^<]+</i>:\s*(.*?)</div>`)
+var wordsmithPartOfSpeechRE = regexp.MustCompile(`(?is)<div[^>]*>\s*<i>([^<]+)</i>:`)
+var wordsmithPronunciationRE = regexp.MustCompile(`(?is)PRONUNCIATION:</div>\s*<div[^>]*>\s*\(([^)]+)\)`)
