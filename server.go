@@ -82,7 +82,7 @@ func hasAnyEvents(ctx context.Context, s *calendar.Service, calendars []Calendar
 		}
 
 		for _, e := range events.Items {
-			if e.EventType != "default" || e.Status == "cancelled" || e.Start == nil || e.End == nil || e.Start.DateTime == "" || e.End.DateTime == "" || e.Summary == "" {
+			if e.EventType != "default" || e.Status == "cancelled" || isDeclinedByCalendar(e) || e.Start == nil || e.End == nil || e.Start.DateTime == "" || e.End.DateTime == "" || e.Summary == "" {
 				continue
 			}
 

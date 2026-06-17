@@ -20,6 +20,15 @@ type CalendarSource struct {
 	Color string
 }
 
+func isDeclinedByCalendar(e *calendar.Event) bool {
+	for _, attendee := range e.Attendees {
+		if attendee.Self && attendee.ResponseStatus == "declined" {
+			return true
+		}
+	}
+	return false
+}
+
 func getCalendarLines(ctx context.Context, s *calendar.Service, calendars []CalendarSource, dayStart time.Time, dayEnd time.Time) [][]string {
 	log.Info().
 		Str("start", dayStart.Format(time.RFC3339)).
@@ -38,7 +47,7 @@ func getCalendarLines(ctx context.Context, s *calendar.Service, calendars []Cale
 			continue
 		}
 		for _, e := range events.Items {
-			if e.EventType == "default" && e.Status != "cancelled" && e.Start != nil && e.Summary != "" {
+			if e.EventType == "default" && e.Status != "cancelled" && !isDeclinedByCalendar(e) && e.Start != nil && e.Summary != "" {
 				validEvents = append(validEvents, &EventWithColor{e, calendar.Color})
 			}
 		}
