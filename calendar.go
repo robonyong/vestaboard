@@ -29,12 +29,39 @@ func isDeclinedByCalendar(e *calendar.Event) bool {
 	return false
 }
 
+func hasNotEnded(e *calendar.Event, now time.Time) bool {
+	if e.End == nil {
+		return false
+	}
+
+	if e.End.DateTime != "" {
+		end, err := time.Parse(time.RFC3339, e.End.DateTime)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to parse end time")
+			return false
+		}
+		return end.After(now)
+	}
+
+	if e.End.Date != "" {
+		end, err := time.ParseInLocation("2006-01-02", e.End.Date, now.Location())
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to parse end date")
+			return false
+		}
+		return end.After(now)
+	}
+
+	return false
+}
+
 func getCalendarLines(ctx context.Context, s *calendar.Service, calendars []CalendarSource, dayStart time.Time, dayEnd time.Time) [][]string {
 	log.Info().
 		Str("start", dayStart.Format(time.RFC3339)).
 		Str("end", dayEnd.Format(time.RFC3339)).
 		Msg("Fetching Events")
 
+	now := time.Now().In(dayStart.Location())
 	validEvents := []*EventWithColor{}
 	for _, calendar := range calendars {
 		events, err := s.Events.List(calendar.Email).
@@ -47,7 +74,7 @@ func getCalendarLines(ctx context.Context, s *calendar.Service, calendars []Cale
 			continue
 		}
 		for _, e := range events.Items {
-			if e.EventType == "default" && e.Status != "cancelled" && !isDeclinedByCalendar(e) && e.Start != nil && e.Summary != "" {
+			if e.EventType == "default" && e.Status != "cancelled" && !isDeclinedByCalendar(e) && e.Start != nil && e.Summary != "" && hasNotEnded(e, now) {
 				validEvents = append(validEvents, &EventWithColor{e, calendar.Color})
 			}
 		}
@@ -73,18 +100,29 @@ func getCalendarLines(ctx context.Context, s *calendar.Service, calendars []Cale
 			line = append(line, " ")
 		}
 
-		title := event.Summary
-
-		for _, char := range strings.Split(title, "") {
+		title := []string{}
+		for _, char := range strings.Split(event.Summary, "") {
 			_, isValid := getVestaboardChar(char)
 			if isValid {
-				line = append(line, char)
-			} else if line[len(line)-1] != " " {
-				line = append(line, " ")
+				title = append(title, char)
+			} else if len(title) > 0 && title[len(title)-1] != " " {
+				title = append(title, " ")
 			}
 		}
 
-		eventLines = append(eventLines, trimLine(line))
+		firstWordEnd := len(title)
+		for i, char := range title {
+			if char == " " {
+				firstWordEnd = i
+				break
+			}
+		}
+		if len(line)+firstWordEnd > BOARD_WIDTH {
+			eventLines = append(eventLines, append(line, title[:BOARD_WIDTH-len(line)]...))
+			continue
+		}
+
+		eventLines = append(eventLines, trimLine(append(line, title...)))
 	}
 
 	return eventLines
