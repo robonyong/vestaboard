@@ -11,7 +11,7 @@ FROM --platform=$BUILDPLATFORM node:26.1.0-trixie-slim AS fe-build
 WORKDIR /usr/src/app/vb-settings
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN npm install -g pnpm@11.1.0
+RUN npm install -g pnpm@12.18.0
 
 COPY vb-settings/package.json vb-settings/pnpm-lock.yaml vb-settings/pnpm-workspace.yaml vb-settings/.npmrc ./
 COPY vb-settings/prisma ./prisma
