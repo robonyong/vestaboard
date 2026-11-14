@@ -82,16 +82,10 @@ func hasAnyEvents(ctx context.Context, s *calendar.Service, calendars []Calendar
 		}
 
 		for _, e := range events.Items {
-			if e.EventType != "default" || e.Status == "cancelled" || isDeclinedByCalendar(e) || e.Start == nil || e.End == nil || e.Start.DateTime == "" || e.End.DateTime == "" || e.Summary == "" {
+			if e.EventType != "default" || e.Status == "cancelled" || isDeclinedByCalendar(e) || e.Start == nil || e.Summary == "" {
 				continue
 			}
-
-			endDateTime, err := time.Parse(time.RFC3339, e.End.DateTime)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to parse end time")
-				continue
-			}
-			if endDateTime.After(now) {
+			if hasNotEnded(e, now) {
 				return true
 			}
 		}
@@ -243,7 +237,7 @@ func (br *makeBoardRunner) runBoard(w http.ResponseWriter, req *http.Request) {
 	transitStart := time.Date(now.Year(), now.Month(), now.Day(), transitStartH, transitStartM, 0, 0, loc)
 	transitEnd := time.Date(now.Year(), now.Month(), now.Day(), transitEndH, transitEndM, 0, 0, loc)
 	transitEnabledDays := parseDays(setting.TransitDays)
-	calendarStart := time.Date(now.Year(), now.Month(), now.Day(), 8, 30, 0, 0, loc)
+	calendarStart := time.Date(now.Year(), now.Month(), now.Day(), 8, 0, 0, 0, loc)
 	calendarEnd := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, loc)
 	calendarEnabledDays := parseDays(setting.CalendarDays)
 

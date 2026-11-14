@@ -3,7 +3,7 @@ packages:
 
 overrides:
   '@hono/node-server': 1.19.13
-  postcss: 8.5.14
+  postcss: 8.5.23
 
 supportedArchitectures:
   os:
